@@ -33,10 +33,28 @@ npm test
 npm run lint
 ```
 
+## Sprint MCP (Codex)
+
+이 저장소에는 Codex 프로젝트 범위의 Sprint MCP 설정이 포함돼 있습니다. 먼저 Sprint의
+**프로필 → API 토큰**에서 개인 토큰을 발급한 뒤, 커밋되지 않는 `.env.local`에 저장합니다.
+
+```bash
+cp .env.local.example .env.local
+# .env.local의 SPRINT_API_TOKEN을 실제 sprint_pat_... 값으로 교체
+```
+
+그다음 이 프로젝트를 신뢰하고 Codex를 재시작하면 `sprint` MCP 서버가 로드됩니다.
+티켓·위키 조회와 생성·수정 도구는 사용할 수 있지만, 안전을 위해 `delete_ticket`과
+`delete_epic`은 프로젝트 설정에서 차단했습니다.
+
+- 설정: `.codex/config.toml`
+- 실행 패키지: `@neki-team/sprint-mcp@0.2.0`
+- API: `https://sprint.suitestudy.com:4641`
+- 토큰은 `.env.local` 또는 실행 환경의 `SPRINT_API_TOKEN`에서만 읽습니다.
+
 ## 주요 파일
 
 - `app/page.tsx`: 어드민 대시보드 골격과 Ant Design 테마
 - `app/globals.css`: Figma 기반 디자인 토큰과 화면 스타일
 - `app/layout.tsx`: 문서 메타데이터와 공유 미리보기 설정
 - `docs/superpowers/specs/2026-08-01-admin-frontend-foundation-design.md`: 프론트엔드 기반 설계
-

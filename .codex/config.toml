@@ -1,0 +1,12 @@
+[mcp_servers.sprint]
+enabled = true
+required = false
+command = "node"
+args = ["--env-file-if-exists=.env.local", "node_modules/@neki-team/sprint-mcp/dist/index.js"]
+cwd = ".."
+env = { SPRINT_API_URL = "https://sprint.suitestudy.com:4641" }
+env_vars = ["SPRINT_API_TOKEN"]
+disabled_tools = ["delete_ticket", "delete_epic"]
+default_tools_approval_mode = "writes"
+startup_timeout_sec = 15.0
+tool_timeout_sec = 60.0
