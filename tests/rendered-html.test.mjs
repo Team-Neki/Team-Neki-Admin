@@ -35,6 +35,7 @@ test("server-renders the Neki Admin dashboard shell", async () => {
   assert.match(html, /안녕하세요, 운영자님/);
   assert.match(html, /최근 운영 요청/);
   assert.match(html, /Design system v0\.1/);
+  assert.match(html, /class="ant-menu-item-icon nav-glyph" aria-hidden="true">D/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape|Building your site/);
 });
 
@@ -57,4 +58,22 @@ test("keeps the Figma foundation and Ant Design dependencies explicit", async ()
 
   await assert.rejects(access(new URL("../app/_sites-preview", import.meta.url)));
   await access(new URL("public/og.png", templateRoot));
+});
+
+test("uses deterministic glyphs for vinext server-client parity", async () => {
+  const [page, packageJson] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../package.json", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(page, /className="nav-glyph"/);
+  assert.doesNotMatch(page, /@ant-design\/icons/);
+  assert.doesNotMatch(packageJson, /@ant-design\/icons/);
+});
+
+test("uses the current Ant Design progress rail token", async () => {
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+
+  assert.match(page, /railColor="#ffeceb"/);
+  assert.doesNotMatch(page, /trailColor=/);
 });

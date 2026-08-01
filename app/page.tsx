@@ -1,20 +1,4 @@
 "use client";
-
-import {
-  BellOutlined,
-  CaretDownOutlined,
-  DashboardOutlined,
-  FileTextOutlined,
-  FlagOutlined,
-  GiftOutlined,
-  LogoutOutlined,
-  MoreOutlined,
-  PictureOutlined,
-  SearchOutlined,
-  SettingOutlined,
-  TeamOutlined,
-  UserOutlined,
-} from "@ant-design/icons";
 import {
   App,
   Avatar,
@@ -36,6 +20,12 @@ import {
 
 const { Header, Content, Sider } = Layout;
 const { Text, Title } = Typography;
+
+const navGlyph = (label: string) => (
+  <span className="nav-glyph" aria-hidden="true">
+    {label}
+  </span>
+);
 
 type OperationRecord = {
   key: string;
@@ -111,29 +101,31 @@ const columns: TableProps<OperationRecord>["columns"] = [
     width: 44,
     align: "right",
     render: () => (
-      <Button type="text" icon={<MoreOutlined />} aria-label="작업 더 보기" />
+      <Button type="text" aria-label="작업 더 보기">
+        <span className="utility-glyph" aria-hidden="true">•••</span>
+      </Button>
     ),
   },
 ];
 
 const menuItems = [
-  { key: "dashboard", icon: <DashboardOutlined />, label: "대시보드" },
+  { key: "dashboard", icon: navGlyph("D"), label: "대시보드" },
   {
     type: "group" as const,
     label: "서비스 관리",
     children: [
-      { key: "members", icon: <TeamOutlined />, label: "회원 관리" },
-      { key: "contents", icon: <PictureOutlined />, label: "콘텐츠 관리" },
-      { key: "reports", icon: <FlagOutlined />, label: "신고 관리", badge: 5 },
-      { key: "events", icon: <GiftOutlined />, label: "이벤트 관리" },
+      { key: "members", icon: navGlyph("M"), label: "회원 관리" },
+      { key: "contents", icon: navGlyph("C"), label: "콘텐츠 관리" },
+      { key: "reports", icon: navGlyph("R"), label: "신고 관리", badge: 5 },
+      { key: "events", icon: navGlyph("E"), label: "이벤트 관리" },
     ],
   },
   {
     type: "group" as const,
     label: "운영",
     children: [
-      { key: "notices", icon: <FileTextOutlined />, label: "공지사항" },
-      { key: "settings", icon: <SettingOutlined />, label: "환경 설정" },
+      { key: "notices", icon: navGlyph("N"), label: "공지사항" },
+      { key: "settings", icon: navGlyph("S"), label: "환경 설정" },
     ],
   },
 ];
@@ -218,7 +210,7 @@ export default function Home() {
                 <span className="system-dot" />
                 Design system v0.1
               </div>
-              <Button type="text" icon={<LogoutOutlined />} block className="logout-button">
+              <Button type="text" icon={navGlyph("←")} block className="logout-button">
                 로그아웃
               </Button>
             </div>
@@ -227,22 +219,24 @@ export default function Home() {
           <Layout>
             <Header className="admin-header">
               <Input
-                prefix={<SearchOutlined />}
+                prefix={<span className="utility-glyph" aria-hidden="true">⌕</span>}
                 placeholder="회원, 콘텐츠, 신고 검색"
                 aria-label="관리자 통합 검색"
                 className="global-search"
               />
               <Flex align="center" gap={16}>
                 <Badge dot>
-                  <Button type="text" icon={<BellOutlined />} aria-label="알림 확인" />
+                  <Button type="text" aria-label="알림 확인">
+                    <span className="utility-glyph notification-glyph" aria-hidden="true">●</span>
+                  </Button>
                 </Badge>
                 <button className="profile-button" type="button" aria-label="관리자 프로필 열기">
-                  <Avatar size={36} icon={<UserOutlined />} />
+                  <Avatar size={36}>N</Avatar>
                   <span className="profile-copy">
                     <strong>네키 운영자</strong>
                     <small>Super Admin</small>
                   </span>
-                  <CaretDownOutlined />
+                  <span className="utility-glyph" aria-hidden="true">⌄</span>
                 </button>
               </Flex>
             </Header>
@@ -290,7 +284,7 @@ export default function Home() {
                   <Text className="eyebrow">이번 달 목표</Text>
                   <Title level={3}>가족 연결 활성화</Title>
                   <div className="goal-progress">
-                    <Progress type="circle" percent={72} strokeColor="#ff5647" trailColor="#ffeceb" size={132} />
+                    <Progress type="circle" percent={72} strokeColor="#ff5647" railColor="#ffeceb" size={132} />
                   </div>
                   <Text type="secondary">목표 2,000가족 중 1,440가족이 연결됐어요.</Text>
                   <Button type="link" className="goal-link">자세히 보기</Button>
