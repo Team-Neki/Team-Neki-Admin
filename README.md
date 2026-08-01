@@ -44,8 +44,9 @@ cp .env.local.example .env.local
 ```
 
 그다음 이 프로젝트를 신뢰하고 Codex를 재시작하면 `sprint` MCP 서버가 로드됩니다.
-티켓·위키 조회와 생성·수정 도구는 사용할 수 있지만, 안전을 위해 `delete_ticket`과
-`delete_epic`은 프로젝트 설정에서 차단했습니다.
+요청 범위인 티켓 4개, 위키 4개, 조회 보조 3개 도구만 허용했습니다. npm 패키지에 추가로
+포함된 에픽·프로젝트·스프린트·댓글 도구는 노출하지 않으며, `delete_ticket`과
+`delete_epic`도 프로젝트 설정에서 명시적으로 차단했습니다.
 
 - 설정: `.codex/config.toml`
 - 실행 패키지: `@neki-team/sprint-mcp@0.2.0`

@@ -6,6 +6,19 @@ args = ["--env-file-if-exists=.env.local", "node_modules/@neki-team/sprint-mcp/d
 cwd = ".."
 env = { SPRINT_API_URL = "https://sprint.suitestudy.com:4641" }
 env_vars = ["SPRINT_API_TOKEN"]
+enabled_tools = [
+  "create_ticket",
+  "update_ticket",
+  "get_ticket",
+  "search_tickets",
+  "create_wiki_page",
+  "update_wiki_page",
+  "get_wiki_page",
+  "search_wiki_pages",
+  "list_teams",
+  "list_members",
+  "list_epics",
+]
 disabled_tools = ["delete_ticket", "delete_epic"]
 default_tools_approval_mode = "writes"
 startup_timeout_sec = 15.0
