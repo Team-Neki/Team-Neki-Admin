@@ -1,18 +1,33 @@
 # Neki Admin
 
-네키 서비스 운영자를 위한 관리자 페이지 초안입니다. Figma의 Color System, Text Styles, Radius 섹션을 코드 토큰으로 옮기고 Ant Design 컴포넌트에 연결했습니다.
+네키 서비스 운영자를 위한 관리자 페이지입니다. 기존 Figma 기반 토큰과 Ant Design 구성 위에 사용자 지표, 수동 알림, 부스 관리, 브랜드 관리, 포즈 관리, Amplitude 이벤트 조회 업무 흐름을 구현했습니다.
 
 ## 현재 범위
 
-- 고정 사이드바와 상단 검색·프로필 영역
-- 회원, 콘텐츠, 신고, 이벤트, 공지 메뉴 구조
-- 주요 운영 지표 카드
-- 주간 활동과 월간 목표 시각화
-- 최근 신고·문의·콘텐츠·회원 요청 테이블
+- 고정 사이드바와 프로필 영역
+- DAU·WAU·MAU, 일·주·월 기준 기간 선택, 전체·Android·iOS 누적 사용자 추이
+- 수동 알림 즉시·예약 발송, 예상 인원 확인, 발송 이력·상세·예약 취소
+- 부스 검색·필터, 등록·상세·수정, 선택 모드 기반 일괄 폐점 처리
+- 전체 브랜드의 Android QR·iOS QR·지도 표시 상태, 3행 체크박스 조합 필터, 브랜드 추가·수정
+- 포즈 이미지 다중 업로드·미리보기, 이미지 목록과 1~4인 필터
+- Amplitude 이벤트 31개를 기능 영역·페이지·파라미터별 조회
+- 브랜드 관리에서 Android·iOS QR 파싱 로직과 이미지 획득 규칙 조회
+- 조회 로딩·빈 화면·오류·재시도와 작업 성공·실패 상태
 - Figma 기반 컬러, Pretendard 타이포, 8/12/20/999px 반경 토큰
 - 반응형 레이아웃
 
-현재 데이터와 메뉴 동작은 디자인 검증용 목업입니다. 실제 API, 인증, 관리자 권한, 메뉴 정보 구조는 백엔드 계약과 운영 정책이 확정되면 연결합니다.
+## Ant Design 기준
+
+- `antd@6.5.3`과 공식 Ant Design Skill/CLI를 기준으로 컴포넌트 API와 사용 예시를 확인합니다.
+- 전역 디자인 값은 `ConfigProvider`의 `theme.token`으로 관리하고, 메시지·모달·알림은 `App.useApp()` 컨텍스트에서 호출합니다.
+- 복수 조건 필터는 `Checkbox.Group`, 한 축의 보기 전환은 `Segmented`, 기준 기간 선택은 `DatePicker`, 목록 일괄 작업은 `Table.rowSelection`을 사용합니다. 데이터 목록은 열 `responsive`와 `scroll` 설정으로 화면 폭에 대응합니다.
+- 공식 문서: [For Agents](https://ant.design/docs/react/for-agents/) · [Checkbox](https://ant.design/components/checkbox/) · [DatePicker](https://ant.design/components/date-picker/) · [Segmented](https://ant.design/components/segmented/) · [Table](https://ant.design/components/table/) · [Theme](https://ant.design/docs/react/customize-theme/)
+
+현재 프로토타입은 외부 요청 없이 `app/admin/mock-admin-data.ts`의 시드 데이터와 메모리 기반 비동기 adapter만 사용합니다. 포즈 업로드도 브라우저 메모리에만 저장되어 새로고침하면 초기화됩니다. 화면은 `AdminAdapter` 계약에만 의존하므로 실제 API, 인증, 관리자 권한, 이미지 스토리지, 주소 검색, 푸시·Discord 연동은 백엔드 계약과 운영 정책이 확정된 뒤 별도 구현체로 연결할 수 있습니다.
+
+실 API 연결 시에는 `AdminAdapter`를 구현하는 `api-admin-adapter.ts`를 추가하고, `app/admin/admin-adapter.ts`의 조립 지점만 교체합니다. 조회·발송·예약 취소·주소 검색·중복 확인·저장·폐점·포즈 업로드가 모두 이 계약을 통과하므로 화면 컴포넌트나 목 데이터 파일을 수정할 필요가 없습니다.
+
+렌더 검증용으로 URL에 `state=empty` 또는 `state=error`를 추가하면 목록의 빈 화면과 조회 오류 상태를 재현할 수 있습니다.
 
 ## 실행
 
@@ -55,7 +70,14 @@ cp .env.local.example .env.local
 
 ## 주요 파일
 
-- `app/page.tsx`: 어드민 대시보드 골격과 Ant Design 테마
+- `app/page.tsx`: 어드민 애플리케이션 진입점
+- `app/admin/AdminApp.tsx`: 공통 셸과 사용자 지표·수동 알림·부스·브랜드·포즈·이벤트·QR 파싱 화면
+- `app/admin/admin-adapter.ts`: mock/API 구현체를 선택하는 단일 조립 지점
+- `app/admin/mock-admin-data.ts`: 검색·필터·페이지네이션 검증용 프로토타입 시드 데이터
+- `app/admin/mock-admin-adapter.ts`: 메모리 기반 목 조회·변경 구현체
+- `app/admin/types.ts`: 화면 모델과 구현체 공통 `AdminAdapter` 계약
+- `public/poses/`: 프로토타입용 포즈 이미지 시드
 - `app/globals.css`: Figma 기반 디자인 토큰과 화면 스타일
 - `app/layout.tsx`: 문서 메타데이터와 공유 미리보기 설정
+- `design-qa.md`: 원본과 구현 렌더를 함께 비교한 시각 QA 결과
 - `docs/superpowers/specs/2026-08-01-admin-frontend-foundation-design.md`: 프론트엔드 기반 설계

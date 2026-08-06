@@ -6,10 +6,15 @@
 
 | 기능 | 화면 기획서 | 주요 화면 |
 | --- | --- | --- |
+| 대시보드 | [dashboard.md](./dashboard.md) | DAU·WAU·MAU, 일·주·월 기준 기간 선택, 플랫폼별 누적 사용자 |
 | 수동 알림 발송 | [manual-notification.md](./manual-notification.md) | 알림 작성, 발송 이력 |
-| 지점 관리 | [store-management.md](./store-management.md) | 지점 목록, 지점 등록·수정 |
+| 부스 관리 | [store-management.md](./store-management.md) | 부스 목록, 부스 등록·수정 |
 | 사전 관리 | [dictionary-management.md](./dictionary-management.md) | 사전 유형별 목록, 항목 등록·수정 |
-| 미지원 브랜드 관리 | [unsupported-brand-management.md](./unsupported-brand-management.md) | 미지원 브랜드 목록 |
+| 브랜드 관리 | [unsupported-brand-management.md](./unsupported-brand-management.md) | 전체 브랜드 목록, Android·iOS QR와 지도 표시 필터, 브랜드 추가·수정 |
+| 포즈 관리 | [pose-management.md](./pose-management.md) | 포즈 목록, 인원수 필터, 포즈 업로드 |
+| 이벤트 | [analytics-events.md](./analytics-events.md) | Amplitude 이벤트 31개, 기능 영역·페이지별 조회 |
+
+플랫폼별 브랜드 파싱과 이미지 획득 규칙은 [QR 이미지 획득·화이트리스트 기준](../qr-platform-flow.md)에 정리하고, 브랜드 관리 화면의 `QR 파싱 로직` 버튼으로 조회한다.
 
 ## 공통 화면 구성
 
@@ -30,7 +35,7 @@
 각 화면의 기능은 다음 형식으로 작성한다.
 
 ```markdown
-#### 화면 ID-기능 ID 기능명
+#### 기능명
 
 - 설명: 기능이 하는 일
 - 트리거: 기능이 시작되는 사용자 동작 또는 시스템 사건
@@ -40,4 +45,4 @@
 - 처리 결과: 기능 수행 후 화면이나 데이터에 나타나는 변화
 ```
 
-기능 ID는 문서 안에서 기능을 안정적으로 참조하기 위해 사용한다. 사전 조건은 기능 구현에 필요한 전제만 기록하고, 세부 정책이나 입력 제한처럼 별도 협의가 필요한 제약은 포함하지 않는다.
+사전 조건은 기능 구현에 필요한 전제만 기록한다. 내부 값 이름, API 필드, 세부 정책이나 입력 제한처럼 별도 협의가 필요한 내용은 포함하지 않는다.

@@ -23,3 +23,11 @@ disabled_tools = ["delete_ticket", "delete_epic"]
 default_tools_approval_mode = "writes"
 startup_timeout_sec = 15.0
 tool_timeout_sec = 60.0
+
+[mcp_servers.lazyweb]
+enabled = true
+required = false
+command = "sh"
+args = ["-lc", "TOKEN=\"${LAZYWEB_MCP_TOKEN:-}\"; if [ -z \"$TOKEN\" ] && [ -f \"$HOME/.lazyweb/lazyweb_mcp_token\" ]; then TOKEN=\"$(cat \"$HOME/.lazyweb/lazyweb_mcp_token\")\"; fi; exec npx -y mcp-remote https://www.lazyweb.com/mcp --header \"Authorization: Bearer $TOKEN\" --transport http-first --silent"]
+startup_timeout_sec = 30.0
+tool_timeout_sec = 60.0

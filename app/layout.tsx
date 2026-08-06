@@ -18,14 +18,14 @@ export async function generateMetadata(): Promise<Metadata> {
     description: "네키 서비스 운영을 위한 관리자 대시보드",
     openGraph: {
       title: "Neki Admin",
-      description: "Design system foundation",
+      description: "네키 서비스 운영을 위한 관리자 대시보드",
       type: "website",
       images: [{ url: "/og.png", width: 1736, height: 908 }],
     },
     twitter: {
       card: "summary_large_image",
       title: "Neki Admin",
-      description: "Design system foundation",
+      description: "네키 서비스 운영을 위한 관리자 대시보드",
       images: ["/og.png"],
     },
   };

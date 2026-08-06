@@ -14,7 +14,9 @@
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
+    "@ant-design/icons": "^6.3.2",
     "antd": "^6.5.3",
+    "dayjs": "^1.11.21",
     "drizzle-orm": "0.45.2",
     "next": "16.2.6",
     "react": "19.2.6",
@@ -22,6 +24,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.37.1",
+    "@cloudflare/workers-types": "^4.20260702.1",
     "@neki-team/sprint-mcp": "0.2.0",
     "@tailwindcss/postcss": "4.2.1",
     "@types/node": "22.19.19",
