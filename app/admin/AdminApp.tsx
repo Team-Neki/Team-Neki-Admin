@@ -53,6 +53,8 @@ import type {
   DashboardMetricValue,
   DashboardMetrics,
   DashboardTrendPoint,
+  DictionaryDraft,
+  DictionaryRecord,
   LoadMode,
   NotificationAudience,
   NotificationDraft,
@@ -71,15 +73,16 @@ const { Text, Title, Paragraph } = Typography;
 
 dayjs.extend(weekOfYear);
 
-type ViewKey = "dashboard" | "notifications" | "stores" | "brands" | "poses" | "analytics" | "qr-parsing";
+type ViewKey = "dashboard" | "notifications" | "stores" | "brands" | "dictionary" | "poses" | "analytics" | "qr-parsing";
 
-const EMPTY_SNAPSHOT: AdminSnapshot = { notifications: [], stores: [], brands: [], poses: [], analyticsEvents: [] };
+const EMPTY_SNAPSHOT: AdminSnapshot = { notifications: [], stores: [], brands: [], dictionaries: [], poses: [], analyticsEvents: [] };
 
 const VIEW_META: Record<ViewKey, { title: string }> = {
   dashboard: { title: "사용자 지표" },
   notifications: { title: "수동 알림" },
   stores: { title: "부스 관리" },
   brands: { title: "브랜드 관리" },
+  dictionary: { title: "사전 관리" },
   poses: { title: "포즈 관리" },
   analytics: { title: "이벤트" },
   "qr-parsing": { title: "QR 파싱 로직" },
@@ -94,6 +97,7 @@ const menuItems: MenuProps["items"] = [
       { key: "notifications", label: "수동 알림" },
       { key: "stores", label: "부스 관리" },
       { key: "brands", label: "브랜드 관리" },
+      { key: "dictionary", label: "사전 관리" },
       { key: "poses", label: "포즈 관리" },
       { key: "analytics", label: "이벤트" },
     ],
@@ -105,6 +109,7 @@ const mobileNavItems: Array<{ key: ViewKey; label: string }> = [
   { key: "notifications", label: "수동 알림" },
   { key: "stores", label: "부스" },
   { key: "brands", label: "브랜드" },
+  { key: "dictionary", label: "사전" },
   { key: "poses", label: "포즈" },
   { key: "analytics", label: "이벤트" },
 ];
@@ -1014,7 +1019,13 @@ function NotificationScreen(props: NotificationScreenProps) {
   );
 }
 
-const EMPTY_STORE_DRAFT: StoreDraft = { brand: "", name: "", address: "", coordinates: "", phone: "" };
+const EMPTY_STORE_DRAFT: StoreDraft = { brand: "", name: "", sido: "", sigungu: "", address: "", coordinates: "", phone: "" };
+
+const parseAddressRegion = (address: string) => {
+  const parts = address.trim().split(/\s+/).filter(Boolean);
+  const sido = parts[0] === "서울" ? "서울특별시" : parts[0] ?? "";
+  return { sido, sigungu: parts[1] ?? "" };
+};
 
 function StoreEditor({
   brands,
@@ -1029,7 +1040,7 @@ function StoreEditor({
 }) {
   const { message } = App.useApp();
   const [draft, setDraft] = useState<StoreDraft>(initial ? {
-    brand: initial.brand, name: initial.name, address: initial.address, coordinates: initial.coordinates, phone: initial.phone,
+    brand: initial.brand, name: initial.name, sido: initial.sido, sigungu: initial.sigungu, address: initial.address, coordinates: initial.coordinates, phone: initial.phone,
   } : EMPTY_STORE_DRAFT);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1037,7 +1048,7 @@ function StoreEditor({
   const [addressOptions, setAddressOptions] = useState<AddressSuggestion[]>(initial ? [{ id: `selected-${initial.id}`, address: initial.address, coordinates: initial.coordinates }] : []);
   const [addressSearching, setAddressSearching] = useState(false);
   const [similar, setSimilar] = useState<StoreRecord[]>([]);
-  const original = initial ? JSON.stringify({ brand: initial.brand, name: initial.name, address: initial.address, coordinates: initial.coordinates, phone: initial.phone }) : JSON.stringify(EMPTY_STORE_DRAFT);
+  const original = initial ? JSON.stringify({ brand: initial.brand, name: initial.name, sido: initial.sido, sigungu: initial.sigungu, address: initial.address, coordinates: initial.coordinates, phone: initial.phone }) : JSON.stringify(EMPTY_STORE_DRAFT);
   const dirty = JSON.stringify(draft) !== original;
 
   useEffect(() => {
@@ -1071,7 +1082,7 @@ function StoreEditor({
 
   const chooseAddress = (value: string) => {
     const address = addressOptions.find((item) => item.address === value);
-    if (address) setDraft({ ...draft, address: address.address, coordinates: address.coordinates });
+    if (address) setDraft({ ...draft, ...parseAddressRegion(address.address), address: address.address, coordinates: address.coordinates });
   };
 
   const review = () => {
@@ -1150,6 +1161,8 @@ function StoreScreen({ stores, setStores, brands }: { stores: StoreRecord[]; set
   const [query, setQuery] = useState("");
   const [brand, setBrand] = useState("all");
   const [status, setStatus] = useState("all");
+  const [sido, setSido] = useState("all");
+  const [sigungu, setSigungu] = useState("all");
   const [detail, setDetail] = useState<StoreRecord>();
   const [editor, setEditor] = useState<StoreRecord | "new">();
   const [closeMode, setCloseMode] = useState(false);
@@ -1159,7 +1172,9 @@ function StoreScreen({ stores, setStores, brands }: { stores: StoreRecord[]; set
   const [highlighted, setHighlighted] = useState<string>();
   const statusBeforeCloseMode = useRef("all");
 
-  const filtered = useMemo(() => stores.filter((store) => store.name.toLocaleLowerCase().includes(query.toLocaleLowerCase()) && (brand === "all" || store.brand === brand) && (status === "all" || store.status === status)).sort((a, b) => a.name.localeCompare(b.name, "ko")), [stores, query, brand, status]);
+  const sidoOptions = useMemo(() => ["all", ...new Set(stores.map((store) => store.sido).filter(Boolean))], [stores]);
+  const sigunguOptions = useMemo(() => ["all", ...new Set(stores.filter((store) => sido === "all" || store.sido === sido).map((store) => store.sigungu).filter(Boolean))], [sido, stores]);
+  const filtered = useMemo(() => stores.filter((store) => store.name.toLocaleLowerCase().includes(query.toLocaleLowerCase()) && (brand === "all" || store.brand === brand) && (status === "all" || store.status === status) && (sido === "all" || store.sido === sido) && (sigungu === "all" || store.sigungu === sigungu)).sort((a, b) => a.name.localeCompare(b.name, "ko")), [stores, query, brand, status, sido, sigungu]);
   const selectedStores = useMemo(() => {
     const selected = new Set(selectedStoreIds);
     return stores.filter((store) => selected.has(store.id) && store.status === "운영 중");
@@ -1170,6 +1185,8 @@ function StoreScreen({ stores, setStores, brands }: { stores: StoreRecord[]; set
     setQuery("");
     setBrand("all");
     setStatus(closeMode ? "운영 중" : "all");
+    setSido("all");
+    setSigungu("all");
     clearSelection();
   };
   const enterCloseMode = () => {
@@ -1247,10 +1264,16 @@ function StoreScreen({ stores, setStores, brands }: { stores: StoreRecord[]; set
           <Input.Search value={query} onChange={(event) => { setQuery(event.target.value); clearSelection(); }} placeholder="부스명 검색" allowClear aria-label="부스명 검색" />
           <Select value={brand} onChange={(value) => { setBrand(value); clearSelection(); }} aria-label="브랜드 필터" options={[{ label: "모든 브랜드", value: "all" }, ...brands.map((item) => ({ label: item.name, value: item.name }))]} />
           <Select value={status} disabled={closeMode} onChange={(value) => { setStatus(value); clearSelection(); }} aria-label="운영 상태 필터" options={[{ label: "모든 운영 상태", value: "all" }, { label: "운영 중", value: "운영 중" }, { label: "폐점", value: "폐점" }]} />
-          {(query || brand !== "all" || (!closeMode && status !== "all")) && <Button onClick={resetFilters}>조건 초기화</Button>}
+          {(query || brand !== "all" || (!closeMode && status !== "all") || sido !== "all" || sigungu !== "all") && <Button onClick={resetFilters}>조건 초기화</Button>}
+        </div>
+        <div className="store-region-filters" aria-label="행정구역 필터">
+          <Text strong>지역</Text>
+          <Select value={sido} onChange={(value) => { setSido(value); setSigungu("all"); clearSelection(); }} aria-label="시·도 필터" options={[{ label: "모든 시·도", value: "all" }, ...sidoOptions.filter((value) => value !== "all").map((value) => ({ label: value, value }))]} />
+          <Select value={sigungu} disabled={sido === "all"} onChange={(value) => { setSigungu(value); clearSelection(); }} aria-label="시·군·구 필터" options={[{ label: sido === "all" ? "시·도 먼저 선택" : "모든 시·군·구", value: "all" }, ...sigunguOptions.filter((value) => value !== "all").map((value) => ({ label: value, value }))]} />
+          <Text type="secondary">시·도를 선택하면 해당 시·군·구 목록이 좁혀집니다.</Text>
         </div>
         <div className="result-summary"><Text strong>{filtered.length}개 부스</Text></div>
-        {filtered.length ? <Table rowKey="id" rowSelection={closeMode ? closeRowSelection : undefined} rowClassName={(record) => record.id === highlighted ? "highlight-row" : ""} columns={columns} dataSource={filtered} scroll={{ x: 860 }} pagination={{ pageSize: 5, showSizeChanger: false, showTotal: (total) => `총 ${total}개` }} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={stores.length ? "검색 조건에 맞는 부스가 없습니다." : "아직 등록된 부스가 없습니다."}>{stores.length ? <Button onClick={resetFilters}>검색 조건 초기화</Button> : <Button type="primary" onClick={() => setEditor("new")}>신규 부스 등록</Button>}</Empty>}
+        {filtered.length ? <Table rowKey="id" rowSelection={closeMode ? closeRowSelection : undefined} rowClassName={(record) => record.id === highlighted ? "highlight-row" : ""} columns={columns} dataSource={filtered} scroll={{ x: 860 }} pagination={{ pageSize: 30, showSizeChanger: false, showTotal: (total) => `총 ${total}개` }} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={stores.length ? "검색 조건에 맞는 부스가 없습니다." : "아직 등록된 부스가 없습니다."}>{stores.length ? <Button onClick={resetFilters}>검색 조건 초기화</Button> : <Button type="primary" onClick={() => setEditor("new")}>신규 부스 등록</Button>}</Empty>}
       </Card>
 
       <Modal open={Boolean(detail)} title="부스 상세" width={660} onCancel={() => setDetail(undefined)} footer={detail ? [<Button key="close" onClick={() => setDetail(undefined)}>닫기</Button>, <Button key="edit" onClick={() => { setEditor(detail); setDetail(undefined); }}>수정</Button>] : null}>
@@ -1346,11 +1369,12 @@ const EMPTY_BRAND_DRAFT: BrandDraft = {
 
 type BrandEditorTarget = BrandRecord | "new";
 
-function BrandScreen({ brands, setBrands, onOpenQrParsing }: { brands: BrandRecord[]; setBrands: React.Dispatch<React.SetStateAction<BrandRecord[]>>; onOpenQrParsing: () => void }) {
+const normalizeDictionaryTerm = (value: string) => value.trim().toLocaleLowerCase().replace(/\s+/g, "");
+
+function BrandScreen({ brands, dictionaries, setBrands, onOpenQrParsing }: { brands: BrandRecord[]; dictionaries: DictionaryRecord[]; setBrands: React.Dispatch<React.SetStateAction<BrandRecord[]>>; onOpenQrParsing: () => void }) {
   const { message, modal } = App.useApp();
   const [query, setQuery] = useState("");
-  const [androidQrFilters, setAndroidQrFilters] = useState<BrandQrFilter[]>([]);
-  const [iosQrFilters, setIosQrFilters] = useState<BrandQrFilter[]>([]);
+  const [qrFilters, setQrFilters] = useState<BrandQrFilter[]>([]);
   const [mapFilters, setMapFilters] = useState<BrandMapFilter[]>([]);
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<BrandEditorTarget>();
@@ -1360,30 +1384,26 @@ function BrandScreen({ brands, setBrands, onOpenQrParsing }: { brands: BrandReco
   const [similar, setSimilar] = useState<BrandRecord[]>([]);
   const originalDraft = editing === "new" ? EMPTY_BRAND_DRAFT : editing ? toBrandDraft(editing) : undefined;
   const dirty = Boolean(draft && originalDraft && JSON.stringify(draft) !== JSON.stringify(originalDraft));
-  const brandFiltersActive = Boolean(androidQrFilters.length || iosQrFilters.length || mapFilters.length);
+  const brandFiltersActive = Boolean(qrFilters.length || mapFilters.length);
   const filtersActive = Boolean(query || brandFiltersActive);
   const filtered = useMemo(() => brands
     .filter((brand) => {
-      const matchesQuery = brand.name.toLocaleLowerCase().includes(query.toLocaleLowerCase());
-      const matchesAndroidQr = androidQrFilters.length === 0
-        || (androidQrFilters.includes("supported") && brand.androidQrSupported)
-        || (androidQrFilters.includes("unsupported") && !brand.androidQrSupported);
-      const matchesIosQr = iosQrFilters.length === 0
-        || (iosQrFilters.includes("supported") && brand.iosQrSupported)
-        || (iosQrFilters.includes("unsupported") && !brand.iosQrSupported);
+      const dictionary = dictionaries.find((item) => item.canonicalTerm === brand.name);
+      const normalizedQuery = normalizeDictionaryTerm(query);
+      const matchesQuery = !normalizedQuery || [brand.name, ...(dictionary?.allowedTerms ?? [])].some((term) => normalizeDictionaryTerm(term).includes(normalizedQuery));
+      const qrSupported = brand.androidQrSupported || brand.iosQrSupported;
+      const matchesQr = qrFilters.length === 0
+        || (qrFilters.includes("supported") && qrSupported)
+        || (qrFilters.includes("unsupported") && !qrSupported);
       const matchesMap = mapFilters.length === 0
         || (mapFilters.includes("visible") && brand.mapVisible)
         || (mapFilters.includes("hidden") && !brand.mapVisible);
-      return matchesQuery && matchesAndroidQr && matchesIosQr && matchesMap;
+      return matchesQuery && matchesQr && matchesMap;
     })
-    .sort((a, b) => a.name.localeCompare(b.name, "ko")), [androidQrFilters, brands, iosQrFilters, mapFilters, query]);
-  const androidQrFilterOptions = [
-    { value: "supported" as const, label: <span className="brand-filter-binary-label"><BrandBooleanMark value yesLabel="Android QR 가능" noLabel="Android QR 불가" /><span className="brand-filter-count" aria-hidden>{brands.filter((brand) => brand.androidQrSupported).length}</span></span> },
-    { value: "unsupported" as const, label: <span className="brand-filter-binary-label"><BrandBooleanMark value={false} yesLabel="Android QR 가능" noLabel="Android QR 불가" /><span className="brand-filter-count" aria-hidden>{brands.filter((brand) => !brand.androidQrSupported).length}</span></span> },
-  ];
-  const iosQrFilterOptions = [
-    { value: "supported" as const, label: <span className="brand-filter-binary-label"><BrandBooleanMark value yesLabel="iOS QR 가능" noLabel="iOS QR 불가" /><span className="brand-filter-count" aria-hidden>{brands.filter((brand) => brand.iosQrSupported).length}</span></span> },
-    { value: "unsupported" as const, label: <span className="brand-filter-binary-label"><BrandBooleanMark value={false} yesLabel="iOS QR 가능" noLabel="iOS QR 불가" /><span className="brand-filter-count" aria-hidden>{brands.filter((brand) => !brand.iosQrSupported).length}</span></span> },
+    .sort((a, b) => a.name.localeCompare(b.name, "ko")), [brands, dictionaries, mapFilters, qrFilters, query]);
+  const qrFilterOptions = [
+    { value: "supported" as const, label: <span className="brand-filter-binary-label"><BrandBooleanMark value yesLabel="QR 지원" noLabel="QR 미지원" /><span className="brand-filter-count" aria-hidden>{brands.filter((brand) => brand.androidQrSupported || brand.iosQrSupported).length}</span></span> },
+    { value: "unsupported" as const, label: <span className="brand-filter-binary-label"><BrandBooleanMark value={false} yesLabel="QR 지원" noLabel="QR 미지원" /><span className="brand-filter-count" aria-hidden>{brands.filter((brand) => !brand.androidQrSupported && !brand.iosQrSupported).length}</span></span> },
   ];
   const mapFilterOptions = [
     { value: "visible" as const, label: <span className="brand-filter-binary-label"><BrandBooleanMark value yesLabel="지도 표시" noLabel="지도 미표시" /><span className="brand-filter-count" aria-hidden>{brands.filter((brand) => brand.mapVisible).length}</span></span> },
@@ -1403,7 +1423,7 @@ function BrandScreen({ brands, setBrands, onOpenQrParsing }: { brands: BrandReco
     }, 220);
     return () => { active = false; window.clearTimeout(timer); };
   }, [draft, editing]);
-  const resetBrandFilters = () => { setAndroidQrFilters([]); setIosQrFilters([]); setMapFilters([]); setPage(1); };
+  const resetBrandFilters = () => { setQrFilters([]); setMapFilters([]); setPage(1); };
   const resetAllFilters = () => { setQuery(""); resetBrandFilters(); };
   const openCreate = () => {
     setSimilar([]);
@@ -1456,12 +1476,8 @@ function BrandScreen({ brands, setBrands, onOpenQrParsing }: { brands: BrandReco
         </div>
         <div className="brand-filter-rows">
           <div className="brand-filter-row">
-            <Text strong>Android QR</Text>
-            <Checkbox.Group<BrandQrFilter> name="brand-android-qr-filter" value={androidQrFilters} options={androidQrFilterOptions} aria-label="Android QR 지원 필터" onChange={(values) => { setAndroidQrFilters(values); setPage(1); }} />
-          </div>
-          <div className="brand-filter-row">
-            <Text strong>iOS QR</Text>
-            <Checkbox.Group<BrandQrFilter> name="brand-ios-qr-filter" value={iosQrFilters} options={iosQrFilterOptions} aria-label="iOS QR 지원 필터" onChange={(values) => { setIosQrFilters(values); setPage(1); }} />
+            <Text strong>QR 지원</Text>
+            <Checkbox.Group<BrandQrFilter> name="brand-qr-filter" value={qrFilters} options={qrFilterOptions} aria-label="QR 지원 필터" onChange={(values) => { setQrFilters(values); setPage(1); }} />
           </div>
           <div className="brand-filter-row">
             <Text strong>지도 표시</Text>
@@ -1474,7 +1490,7 @@ function BrandScreen({ brands, setBrands, onOpenQrParsing }: { brands: BrandReco
           <Input.Search value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="브랜드명 검색" allowClear aria-label="브랜드명 검색" />
         </div>
         <div className="result-summary"><Text strong>{filtered.length}개 브랜드</Text></div>
-        {filtered.length ? <Table rowKey="id" rowClassName={(record) => record.id === highlighted ? "highlight-row" : ""} columns={columns} dataSource={filtered} scroll={{ x: 650 }} pagination={{ current: page, pageSize: 5, responsive: true, showLessItems: true, showSizeChanger: false, showTotal: (total) => `총 ${total}개`, onChange: setPage }} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={brands.length ? "검색 조건에 맞는 브랜드가 없습니다." : "등록된 브랜드가 없습니다."}>{brands.length ? filtersActive && <Button onClick={resetAllFilters}>검색과 필터 초기화</Button> : <Button type="primary" onClick={openCreate}>첫 브랜드 추가</Button>}</Empty>}
+        {filtered.length ? <Table rowKey="id" rowClassName={(record) => record.id === highlighted ? "highlight-row" : ""} columns={columns} dataSource={filtered} scroll={{ x: 650 }} pagination={{ current: page, pageSize: 30, responsive: true, showLessItems: true, showSizeChanger: false, showTotal: (total) => `총 ${total}개`, onChange: setPage }} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={brands.length ? "검색 조건에 맞는 브랜드가 없습니다." : "등록된 브랜드가 없습니다."}>{brands.length ? filtersActive && <Button onClick={resetAllFilters}>검색과 필터 초기화</Button> : <Button type="primary" onClick={openCreate}>첫 브랜드 추가</Button>}</Empty>}
       </Card>
 
       <Modal open={Boolean(editing && draft)} title={editing === "new" ? "브랜드 추가" : "브랜드 정보 수정"} okText={editing === "new" ? "추가" : "저장"} cancelText="취소" confirmLoading={saving} onOk={save} onCancel={closeEditor}>
@@ -1495,6 +1511,83 @@ function BrandScreen({ brands, setBrands, onOpenQrParsing }: { brands: BrandReco
             <Text strong>지도에 브랜드 표시</Text>
             <Switch checked={draft.mapVisible} onChange={(value) => setDraft({ ...draft, mapVisible: value })} checkedChildren="O" unCheckedChildren="X" aria-label="지도 표시 여부" />
           </div>
+        </Form>}
+      </Modal>
+    </>
+  );
+}
+
+const EMPTY_DICTIONARY_DRAFT: DictionaryDraft = { canonicalTerm: "", allowedTerms: [] };
+
+function DictionaryScreen({ dictionaries, setDictionaries }: { dictionaries: DictionaryRecord[]; setDictionaries: React.Dispatch<React.SetStateAction<DictionaryRecord[]>> }) {
+  const { message, modal } = App.useApp();
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [editing, setEditing] = useState<DictionaryRecord | "new">();
+  const [draft, setDraft] = useState<DictionaryDraft>();
+  const [saving, setSaving] = useState(false);
+  const [highlighted, setHighlighted] = useState<string>();
+  const originalDraft = editing === "new" ? EMPTY_DICTIONARY_DRAFT : editing ? { canonicalTerm: editing.canonicalTerm, allowedTerms: editing.allowedTerms } : undefined;
+  const dirty = Boolean(draft && originalDraft && JSON.stringify(draft) !== JSON.stringify(originalDraft));
+  const filtered = useMemo(() => {
+    const normalizedQuery = normalizeDictionaryTerm(query);
+    return dictionaries
+      .filter((entry) => !normalizedQuery || [entry.canonicalTerm, ...entry.allowedTerms].some((term) => normalizeDictionaryTerm(term).includes(normalizedQuery)))
+      .sort((a, b) => a.canonicalTerm.localeCompare(b.canonicalTerm, "ko"));
+  }, [dictionaries, query]);
+
+  const openCreate = () => { setEditing("new"); setDraft({ ...EMPTY_DICTIONARY_DRAFT }); };
+  const openEditor = (entry: DictionaryRecord) => { setEditing(entry); setDraft({ canonicalTerm: entry.canonicalTerm, allowedTerms: [...entry.allowedTerms] }); };
+  const closeEditor = () => {
+    if (!dirty) { setEditing(undefined); setDraft(undefined); return; }
+    modal.confirm({ title: "변경 내용을 버릴까요?", content: "저장하지 않은 사전 항목은 사라집니다.", okText: "변경 내용 버리기", cancelText: "계속 수정", onOk: () => { setEditing(undefined); setDraft(undefined); } });
+  };
+  const save = async () => {
+    if (!editing || !draft) return;
+    const canonicalTerm = draft.canonicalTerm.trim();
+    const allowedTerms = [...new Set(draft.allowedTerms.map((term) => term.trim()).filter(Boolean))].filter((term) => normalizeDictionaryTerm(term) !== normalizeDictionaryTerm(canonicalTerm));
+    if (!canonicalTerm) { message.warning("원 단어를 입력해 주세요."); return; }
+    if (dictionaries.some((entry) => entry.id !== (editing === "new" ? undefined : editing.id) && normalizeDictionaryTerm(entry.canonicalTerm) === normalizeDictionaryTerm(canonicalTerm))) {
+      message.warning("같은 원 단어가 이미 등록되어 있습니다.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const record = await adminAdapter.saveDictionary({ canonicalTerm, allowedTerms }, editing === "new" ? undefined : editing.id);
+      setDictionaries((current) => editing === "new" ? [record, ...current] : current.map((item) => item.id === record.id ? record : item));
+      setEditing(undefined);
+      setDraft(undefined);
+      setHighlighted(record.id);
+      message.success(editing === "new" ? "사전 항목을 추가했습니다." : "사전 항목을 수정했습니다.");
+    } catch {
+      message.error("사전 항목 저장에 실패했습니다. 입력 내용은 그대로 유지됩니다.");
+    } finally { setSaving(false); }
+  };
+  const columns: TableProps<DictionaryRecord>["columns"] = [
+    { title: "원 단어", dataIndex: "canonicalTerm", width: 190, render: (value) => <Text strong>{value}</Text> },
+    { title: "허용 단어", render: (_, entry) => entry.allowedTerms.length ? <Space size={[4, 4]} wrap>{entry.allowedTerms.map((term) => <Tag key={term}>{term}</Tag>)}</Space> : <Text type="secondary">등록된 허용 단어 없음</Text> },
+    { title: "허용 단어 수", width: 110, align: "center", render: (_, entry) => entry.allowedTerms.length },
+    { title: "최근 수정일", dataIndex: "updatedAt", width: 130, responsive: ["lg"] },
+    { title: "작업", width: 90, render: (_, entry) => <Button type="link" size="small" onClick={() => openEditor(entry)}>수정</Button> },
+  ];
+
+  return (
+    <>
+      <PageHeader view="dictionary" action={<Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>사전 항목 추가</Button>} />
+      {highlighted && <Alert className="success-banner" type="success" showIcon closable={{ onClose: () => setHighlighted(undefined) }} title="변경한 사전 항목을 목록에 반영했습니다." />}
+      <Card className="content-card dictionary-intro-card">
+        <div><Text className="eyebrow">검색 정규화</Text><Title level={3}>원 단어와 허용 단어</Title><Paragraph>허용 단어로 검색해도 원 단어 브랜드로 매칭합니다. 예를 들어 ‘인샹네컷’은 ‘인생네컷’으로 연결됩니다.</Paragraph></div>
+        <Tag color="blue">목 데이터 · API 연동 전</Tag>
+      </Card>
+      <Card className="content-card table-card">
+        <div className="brand-search-bar"><Input.Search value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="원 단어 또는 허용 단어 검색" allowClear aria-label="사전 검색" /></div>
+        <div className="result-summary"><Text strong>{filtered.length}개 사전 항목</Text></div>
+        {filtered.length ? <Table rowKey="id" rowClassName={(entry) => entry.id === highlighted ? "highlight-row" : ""} columns={columns} dataSource={filtered} scroll={{ x: 720 }} pagination={{ current: page, pageSize: 30, responsive: true, showLessItems: true, showSizeChanger: false, showTotal: (total) => `총 ${total}개`, onChange: setPage }} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={dictionaries.length ? "검색 조건에 맞는 사전 항목이 없습니다." : "등록된 사전 항목이 없습니다."}>{dictionaries.length ? <Button onClick={() => setQuery("")}>검색어 초기화</Button> : <Button type="primary" onClick={openCreate}>첫 사전 항목 추가</Button>}</Empty>}
+      </Card>
+      <Modal open={Boolean(editing && draft)} title={editing === "new" ? "사전 항목 추가" : "사전 항목 수정"} okText={editing === "new" ? "추가" : "저장"} cancelText="취소" confirmLoading={saving} onOk={save} onCancel={closeEditor}>
+        {draft && <Form layout="vertical" requiredMark={false}>
+          <Form.Item label="원 단어" required extra="검색 결과로 최종 연결할 대표 단어입니다."><Input value={draft.canonicalTerm} placeholder="예: 인생네컷" onChange={(event) => setDraft({ ...draft, canonicalTerm: event.target.value })} /></Form.Item>
+          <Form.Item label="허용 단어" extra="한 줄에 하나씩 입력하세요. 띄어쓰기 차이와 자주 발생하는 오타를 등록할 수 있습니다."><Input.TextArea value={draft.allowedTerms.join("\n")} rows={6} placeholder={"인생 네컷\n인샹네컷"} onChange={(event) => setDraft({ ...draft, allowedTerms: event.target.value.split(/\n/).map((term) => term.trim()).filter(Boolean) })} /></Form.Item>
         </Form>}
       </Modal>
     </>
@@ -1820,7 +1913,8 @@ function AdminWorkspace() {
             <>
               {view === "notifications" && <NotificationScreen records={data.notifications} setRecords={(update) => setData((current) => ({ ...current, notifications: typeof update === "function" ? update(current.notifications) : update }))} />}
               {view === "stores" && <StoreScreen stores={data.stores} brands={data.brands} setStores={(update) => setData((current) => ({ ...current, stores: typeof update === "function" ? update(current.stores) : update }))} />}
-              {view === "brands" && <BrandScreen brands={data.brands} setBrands={(update) => setData((current) => ({ ...current, brands: typeof update === "function" ? update(current.brands) : update }))} onOpenQrParsing={() => navigate("qr-parsing")} />}
+              {view === "brands" && <BrandScreen brands={data.brands} dictionaries={data.dictionaries} setBrands={(update) => setData((current) => ({ ...current, brands: typeof update === "function" ? update(current.brands) : update }))} onOpenQrParsing={() => navigate("qr-parsing")} />}
+              {view === "dictionary" && <DictionaryScreen dictionaries={data.dictionaries} setDictionaries={(update) => setData((current) => ({ ...current, dictionaries: typeof update === "function" ? update(current.dictionaries) : update }))} />}
               {view === "poses" && <PoseScreen poses={data.poses} setPoses={(update) => setData((current) => ({ ...current, poses: typeof update === "function" ? update(current.poses) : update }))} />}
               {view === "analytics" && <AnalyticsScreen events={data.analyticsEvents} />}
               {view === "qr-parsing" && <QrParsingScreen onBack={() => navigate("brands")} />}

@@ -7,6 +7,8 @@ import type {
   DashboardGranularity,
   DashboardMetrics,
   DashboardMetricsQuery,
+  DictionaryDraft,
+  DictionaryRecord,
   LoadMode,
   NotificationDraft,
   NotificationRecord,
@@ -71,7 +73,7 @@ export const mockAdminAdapter: AdminAdapter = {
   async load(mode: LoadMode = "success"): Promise<AdminSnapshot> {
     await wait();
     if (mode === "error") throw new Error("운영 데이터를 불러오지 못했습니다.");
-    if (mode === "empty") return { notifications: [], stores: [], brands: [], poses: [], analyticsEvents: [] };
+    if (mode === "empty") return { notifications: [], stores: [], brands: [], dictionaries: [], poses: [], analyticsEvents: [] };
     return structuredClone(state);
   },
 
@@ -244,6 +246,20 @@ export const mockAdminAdapter: AdminAdapter = {
     state.brands = id
       ? state.brands.map((item) => (item.id === id ? record : item))
       : [...state.brands, record];
+    return structuredClone(record);
+  },
+
+  async saveDictionary(draft: DictionaryDraft, id?: string): Promise<DictionaryRecord> {
+    await wait(420);
+    const record: DictionaryRecord = {
+      canonicalTerm: draft.canonicalTerm.trim(),
+      allowedTerms: [...new Set(draft.allowedTerms.map((term) => term.trim()).filter(Boolean))],
+      id: id ?? `dictionary-${Date.now()}`,
+      updatedAt: today(),
+    };
+    state.dictionaries = id
+      ? state.dictionaries.map((item) => (item.id === id ? record : item))
+      : [record, ...state.dictionaries];
     return structuredClone(record);
   },
 

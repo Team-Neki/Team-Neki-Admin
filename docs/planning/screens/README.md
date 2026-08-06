@@ -8,9 +8,9 @@
 | --- | --- | --- |
 | 대시보드 | [dashboard.md](./dashboard.md) | DAU·WAU·MAU, 일·주·월 기준 기간 선택, 플랫폼별 누적 사용자 |
 | 수동 알림 발송 | [manual-notification.md](./manual-notification.md) | 알림 작성, 발송 이력 |
-| 부스 관리 | [store-management.md](./store-management.md) | 부스 목록, 부스 등록·수정 |
-| 사전 관리 | [dictionary-management.md](./dictionary-management.md) | 사전 유형별 목록, 항목 등록·수정 |
-| 브랜드 관리 | [unsupported-brand-management.md](./unsupported-brand-management.md) | 전체 브랜드 목록, Android·iOS QR와 지도 표시 필터, 브랜드 추가·수정 |
+| 부스 관리 | [store-management.md](./store-management.md) | 부스 목록, 시·도·시·군·구 필터, 부스 등록·수정 |
+| 브랜드 관리 | [unsupported-brand-management.md](./unsupported-brand-management.md) | 전체 브랜드 목록, QR 지원·지도 표시 필터, 브랜드 추가·수정 |
+| 사전 관리 | [dictionary-management.md](./dictionary-management.md) | 원 단어·허용 단어 목록, 검색 정규화 사전 추가·수정 |
 | 포즈 관리 | [pose-management.md](./pose-management.md) | 포즈 목록, 인원수 필터, 포즈 업로드 |
 | 이벤트 | [analytics-events.md](./analytics-events.md) | Amplitude 이벤트 31개, 기능 영역·페이지별 조회 |
 

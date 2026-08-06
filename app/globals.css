@@ -274,6 +274,9 @@ button { -webkit-tap-highlight-color: transparent; }
 .table-card .ant-card-body { padding: 0; }
 .toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) 190px 190px auto; gap: 10px; padding: 20px 20px 14px; }
 .notification-toolbar-scheduled { grid-template-columns: minmax(220px, 1fr) auto; }
+.store-region-filters { display: grid; grid-template-columns: 72px minmax(150px, 190px) minmax(150px, 190px) minmax(0, 1fr); align-items: center; gap: 10px; padding: 0 20px 16px; }
+.store-region-filters > .ant-typography:first-child { color: var(--gray-600); font-size: 12px; }
+.store-region-filters > .ant-typography:last-child { overflow: hidden; color: var(--gray-500); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .brand-filter-card { margin-bottom: 16px; }
 .brand-filter-card .ant-card-body { padding: 16px 20px; }
 .brand-filter-heading { display: flex; min-height: 32px; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
@@ -299,6 +302,9 @@ button { -webkit-tap-highlight-color: transparent; }
 .table-card .ant-pagination { padding-inline: 18px; }
 .table-card .ant-empty { padding: 56px 20px 64px; }
 .analytics-intro-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 28px; margin-bottom: 16px; }
+.dictionary-intro-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 24px; margin-bottom: 16px; }
+.dictionary-intro-card h3 { margin: 5px 0 6px !important; font-size: 20px !important; }
+.dictionary-intro-card p { max-width: 720px; margin: 0 !important; line-height: 1.65; }
 .analytics-intro-copy { min-width: 0; }
 .analytics-intro-copy .ant-tag { margin: 0 0 10px; border: 0; border-radius: var(--radius-full); font-size: 11px; font-weight: 750; }
 .analytics-intro-copy h3 { margin: 0 0 7px !important; font-size: 20px !important; }
@@ -405,6 +411,7 @@ button { -webkit-tap-highlight-color: transparent; }
   .toolbar { grid-template-columns: 1fr 1fr; }
   .dashboard-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .analytics-intro-card { grid-template-columns: 1fr; align-items: start; }
+  .dictionary-intro-card { grid-template-columns: 1fr; align-items: start; }
   .analytics-summary-grid { max-width: 440px; }
 }
 
@@ -444,6 +451,9 @@ button { -webkit-tap-highlight-color: transparent; }
   .qr-parsing-summary { align-items: flex-start; flex-direction: column; }
   .two-column-form { grid-template-columns: 1fr; }
   .toolbar { grid-template-columns: 1fr; }
+  .store-region-filters { grid-template-columns: 1fr 1fr; }
+  .store-region-filters > .ant-typography:first-child { grid-column: 1 / -1; }
+  .store-region-filters > .ant-typography:last-child { grid-column: 1 / -1; }
   .store-selection-bar { align-items: flex-start; flex-direction: column; gap: 8px; }
   .store-selection-actions { width: 100%; justify-content: flex-end; }
   .form-section-heading { align-items: flex-start; flex-direction: column; gap: 3px; }

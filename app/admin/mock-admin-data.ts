@@ -1,4 +1,4 @@
-import type { AddressSuggestion, AdminSnapshot, NotificationRecipient } from "./types";
+import type { AddressSuggestion, AdminSnapshot, DictionaryRecord, NotificationRecipient } from "./types";
 import { mockAnalyticsEvents } from "./mock-analytics-events";
 
 /**
@@ -14,6 +14,14 @@ export const mockNotificationRecipients: NotificationRecipient[] = [
   { id: "user-1518", nickname: "기록하는사람", handle: "@recording", platform: "Android", canReceive: true },
   { id: "user-1622", nickname: "찰칵찰칵", handle: "@clickclick", platform: "iOS", canReceive: false },
   { id: "user-1740", nickname: "주말사진가", handle: "@weekendphoto", platform: "Android", canReceive: true },
+];
+
+export const mockDictionaryEntries: DictionaryRecord[] = [
+  { id: "dictionary-01", canonicalTerm: "인생네컷", allowedTerms: ["인생 네컷", "인생네컷브랜드", "인생네 컷", "인샹네컷"], updatedAt: "2026. 08. 05." },
+  { id: "dictionary-02", canonicalTerm: "포토이즘", allowedTerms: ["포토 이즘", "포토이즘박스", "포토이즘 매장"], updatedAt: "2026. 08. 04." },
+  { id: "dictionary-03", canonicalTerm: "하루필름", allowedTerms: ["하루 필름", "하루필림", "하루필름 매장"], updatedAt: "2026. 08. 03." },
+  { id: "dictionary-04", canonicalTerm: "포토그레이", allowedTerms: ["포토 그레이", "포토그레이 매장"], updatedAt: "2026. 08. 02." },
+  { id: "dictionary-05", canonicalTerm: "포토시그니처", allowedTerms: ["포토 시그니처", "포토시그너처", "포토시그니쳐"], updatedAt: "2026. 08. 01." },
 ];
 
 export const mockAdminSnapshot: AdminSnapshot = {
@@ -186,18 +194,18 @@ export const mockAdminSnapshot: AdminSnapshot = {
     },
   ],
   stores: [
-    { id: "store-01", brand: "포토이즘", name: "포토이즘 강남점", address: "서울 강남구 강남대로 438", coordinates: "37.5008, 127.0266", phone: "02-555-0147", status: "운영 중", updatedAt: "2026. 08. 01." },
-    { id: "store-02", brand: "인생네컷", name: "인생네컷 성수점", address: "서울 성동구 연무장길 28", coordinates: "37.5435, 127.0549", phone: "02-466-4412", status: "운영 중", updatedAt: "2026. 07. 30." },
-    { id: "store-03", brand: "하루필름", name: "하루필름 홍대점", address: "서울 마포구 와우산로21길 20", coordinates: "37.5520, 126.9226", phone: "070-8801-1024", status: "운영 중", updatedAt: "2026. 07. 29." },
-    { id: "store-04", brand: "포토그레이", name: "포토그레이 대학로점", address: "서울 종로구 대학로12길 61", coordinates: "37.5825, 127.0029", phone: "", status: "폐점", updatedAt: "2026. 07. 18." },
-    { id: "store-05", brand: "포토이즘", name: "포토이즘 부산광안리점", address: "부산 수영구 광안해변로 219", coordinates: "35.1532, 129.1186", phone: "051-756-0831", status: "운영 중", updatedAt: "2026. 07. 15." },
-    { id: "store-06", brand: "인생네컷", name: "인생네컷 잠실새내점", address: "서울 송파구 올림픽로12길 17", coordinates: "37.5112, 127.0845", phone: "02-0000-1006", status: "운영 중", updatedAt: "2026. 07. 13." },
-    { id: "store-07", brand: "포토시그니처", name: "포토시그니처 대전은행점", address: "대전 중구 중앙로164번길 22", coordinates: "36.3289, 127.4274", phone: "042-000-1007", status: "운영 중", updatedAt: "2026. 07. 11." },
-    { id: "store-08", brand: "포토매틱", name: "포토매틱 한남점", address: "서울 용산구 이태원로54길 26", coordinates: "37.5365, 127.0003", phone: "02-0000-1008", status: "폐점", updatedAt: "2026. 07. 09." },
-    { id: "store-09", brand: "하루필름", name: "하루필름 수원인계점", address: "경기 수원시 팔달구 권광로187번길 10", coordinates: "37.2638, 127.0312", phone: "031-000-1009", status: "운영 중", updatedAt: "2026. 07. 07." },
-    { id: "store-10", brand: "포토그레이", name: "포토그레이 전주객사점", address: "전북 전주시 완산구 전주객사4길 74", coordinates: "35.8184, 127.1427", phone: "063-000-1010", status: "운영 중", updatedAt: "2026. 07. 05." },
-    { id: "store-11", brand: "포토이즘", name: "포토이즘 제주연동점", address: "제주 제주시 신광로 36", coordinates: "33.4884, 126.4905", phone: "064-000-1011", status: "운영 중", updatedAt: "2026. 07. 03." },
-    { id: "store-12", brand: "인생네컷", name: "인생네컷 해운대점", address: "부산 해운대구 구남로 24", coordinates: "35.1631, 129.1635", phone: "051-000-1012", status: "폐점", updatedAt: "2026. 07. 01." },
+    { id: "store-01", brand: "포토이즘", name: "포토이즘 강남점", sido: "서울특별시", sigungu: "강남구", address: "서울 강남구 강남대로 438", coordinates: "37.5008, 127.0266", phone: "02-555-0147", status: "운영 중", updatedAt: "2026. 08. 01." },
+    { id: "store-02", brand: "인생네컷", name: "인생네컷 성수점", sido: "서울특별시", sigungu: "성동구", address: "서울 성동구 연무장길 28", coordinates: "37.5435, 127.0549", phone: "02-466-4412", status: "운영 중", updatedAt: "2026. 07. 30." },
+    { id: "store-03", brand: "하루필름", name: "하루필름 홍대점", sido: "서울특별시", sigungu: "마포구", address: "서울 마포구 와우산로21길 20", coordinates: "37.5520, 126.9226", phone: "070-8801-1024", status: "운영 중", updatedAt: "2026. 07. 29." },
+    { id: "store-04", brand: "포토그레이", name: "포토그레이 대학로점", sido: "서울특별시", sigungu: "종로구", address: "서울 종로구 대학로12길 61", coordinates: "37.5825, 127.0029", phone: "", status: "폐점", updatedAt: "2026. 07. 18." },
+    { id: "store-05", brand: "포토이즘", name: "포토이즘 잠실점", sido: "서울특별시", sigungu: "송파구", address: "서울 송파구 올림픽로12길 17", coordinates: "37.5112, 127.0845", phone: "02-756-0831", status: "운영 중", updatedAt: "2026. 07. 15." },
+    { id: "store-06", brand: "인생네컷", name: "인생네컷 잠실새내점", sido: "서울특별시", sigungu: "송파구", address: "서울 송파구 백제고분로7길 42", coordinates: "37.5112, 127.0845", phone: "02-0000-1006", status: "운영 중", updatedAt: "2026. 07. 13." },
+    { id: "store-07", brand: "포토시그니처", name: "포토시그니처 을지로점", sido: "서울특별시", sigungu: "중구", address: "서울 중구 을지로 100", coordinates: "37.5663, 126.9910", phone: "02-0000-1007", status: "운영 중", updatedAt: "2026. 07. 11." },
+    { id: "store-08", brand: "포토매틱", name: "포토매틱 한남점", sido: "서울특별시", sigungu: "용산구", address: "서울 용산구 이태원로54길 26", coordinates: "37.5365, 127.0003", phone: "02-0000-1008", status: "폐점", updatedAt: "2026. 07. 09." },
+    { id: "store-09", brand: "하루필름", name: "하루필름 합정점", sido: "서울특별시", sigungu: "마포구", address: "서울 마포구 양화로 45", coordinates: "37.5485, 126.9135", phone: "02-0000-1009", status: "운영 중", updatedAt: "2026. 07. 07." },
+    { id: "store-10", brand: "포토그레이", name: "포토그레이 신촌점", sido: "서울특별시", sigungu: "서대문구", address: "서울 서대문구 연세로 13", coordinates: "37.5596, 126.9386", phone: "02-0000-1010", status: "운영 중", updatedAt: "2026. 07. 05." },
+    { id: "store-11", brand: "포토이즘", name: "포토이즘 건대점", sido: "서울특별시", sigungu: "광진구", address: "서울 광진구 아차산로 225", coordinates: "37.5407, 127.0691", phone: "02-0000-1011", status: "운영 중", updatedAt: "2026. 07. 03." },
+    { id: "store-12", brand: "인생네컷", name: "인생네컷 신림점", sido: "서울특별시", sigungu: "관악구", address: "서울 관악구 신림로 325", coordinates: "37.4845, 126.9292", phone: "02-0000-1012", status: "폐점", updatedAt: "2026. 07. 01." },
   ],
   // Android는 local.properties 설정과 URL 판별 분기, iOS는 develop 브랜치의
   // QRCodeParsingStrategy 목록을 확인한 플랫폼별 지원 상태입니다.
@@ -221,6 +229,7 @@ export const mockAdminSnapshot: AdminSnapshot = {
     { id: "brand-16", name: "비룸 스튜디오", androidQrSupported: false, iosQrSupported: false, mapVisible: true, updatedAt: "2026. 08. 03." },
     { id: "brand-17", name: "아우라픽", androidQrSupported: false, iosQrSupported: true, mapVisible: false, updatedAt: "2026. 08. 05." },
   ],
+  dictionaries: mockDictionaryEntries,
   poses: [
     { id: "pose-4-a", imageUrl: "/poses/pose-4-a.jpg", originalFileName: "friends-fourcut-01.jpg", peopleCount: 4, createdAt: "2026. 08. 02. 11:24" },
     { id: "pose-4-b", imageUrl: "/poses/pose-4-b.jpg", originalFileName: "friends-fourcut-02.jpg", peopleCount: 4, createdAt: "2026. 08. 02. 10:18" },
@@ -237,10 +246,9 @@ export const mockAdminSnapshot: AdminSnapshot = {
 export const mockAddressSuggestions: AddressSuggestion[] = [
   { id: "address-01", address: "서울 강남구 테헤란로 142", coordinates: "37.5000, 127.0365" },
   { id: "address-02", address: "서울 마포구 양화로 188", coordinates: "37.5562, 126.9247" },
-  { id: "address-03", address: "부산 부산진구 중앙대로 672", coordinates: "35.1540, 129.0595" },
   { id: "address-04", address: "서울 성동구 연무장길 35", coordinates: "37.5429, 127.0561" },
-  { id: "address-05", address: "경기 수원시 팔달구 효원로 257", coordinates: "37.2635, 127.0286" },
-  { id: "address-06", address: "대전 중구 중앙로 126", coordinates: "36.3282, 127.4254" },
-  { id: "address-07", address: "제주 제주시 신대로 104", coordinates: "33.4891, 126.4983" },
-  { id: "address-08", address: "광주 동구 충장로 90", coordinates: "35.1476, 126.9143" },
+  { id: "address-05", address: "서울 송파구 올림픽로 240", coordinates: "37.5112, 127.0982" },
+  { id: "address-06", address: "서울 용산구 한강대로 100", coordinates: "37.5299, 126.9650" },
+  { id: "address-07", address: "서울 종로구 종로 33", coordinates: "37.5704, 126.9831" },
+  { id: "address-08", address: "서울 강서구 마곡중앙로 161", coordinates: "37.5603, 126.8327" },
 ];

@@ -83,6 +83,8 @@ export type StoreRecord = {
   id: string;
   brand: string;
   name: string;
+  sido: string;
+  sigungu: string;
   address: string;
   coordinates: string;
   phone: string;
@@ -108,6 +110,16 @@ export type BrandRecord = {
 };
 
 export type BrandDraft = Omit<BrandRecord, "id" | "updatedAt">;
+
+/** 검색어 별칭을 원 단어로 정규화하기 위한 화면 전용 사전 모델입니다. */
+export type DictionaryRecord = {
+  id: string;
+  canonicalTerm: string;
+  allowedTerms: string[];
+  updatedAt: string;
+};
+
+export type DictionaryDraft = Omit<DictionaryRecord, "id" | "updatedAt">;
 
 /**
  * 포즈 화면에서 사용하는 UI 모델입니다.
@@ -163,6 +175,7 @@ export type AdminSnapshot = {
   notifications: NotificationRecord[];
   stores: StoreRecord[];
   brands: BrandRecord[];
+  dictionaries: DictionaryRecord[];
   poses: PoseRecord[];
   analyticsEvents: AnalyticsEventRecord[];
 };
@@ -184,5 +197,6 @@ export interface AdminAdapter {
   closeStores(ids: string[]): Promise<StoreRecord[]>;
   findSimilarBrands(name: string, excludeId?: string): Promise<BrandRecord[]>;
   saveBrand(draft: BrandDraft, id?: string): Promise<BrandRecord>;
+  saveDictionary(draft: DictionaryDraft, id?: string): Promise<DictionaryRecord>;
   uploadPoses(input: PoseUploadInput[]): Promise<PoseRecord[]>;
 }
