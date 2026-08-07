@@ -1575,10 +1575,6 @@ function DictionaryScreen({ dictionaries, setDictionaries }: { dictionaries: Dic
     <>
       <PageHeader view="dictionary" action={<Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>사전 항목 추가</Button>} />
       {highlighted && <Alert className="success-banner" type="success" showIcon closable={{ onClose: () => setHighlighted(undefined) }} title="변경한 사전 항목을 목록에 반영했습니다." />}
-      <Card className="content-card dictionary-intro-card">
-        <div><Text className="eyebrow">검색 정규화</Text><Title level={3}>원 단어와 허용 단어</Title><Paragraph>허용 단어로 검색해도 원 단어 브랜드로 매칭합니다. 예를 들어 ‘인샹네컷’은 ‘인생네컷’으로 연결됩니다.</Paragraph></div>
-        <Tag color="blue">목 데이터 · API 연동 전</Tag>
-      </Card>
       <Card className="content-card table-card">
         <div className="brand-search-bar"><Input.Search value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="원 단어 또는 허용 단어 검색" allowClear aria-label="사전 검색" /></div>
         <div className="result-summary"><Text strong>{filtered.length}개 사전 항목</Text></div>
@@ -1586,8 +1582,8 @@ function DictionaryScreen({ dictionaries, setDictionaries }: { dictionaries: Dic
       </Card>
       <Modal open={Boolean(editing && draft)} title={editing === "new" ? "사전 항목 추가" : "사전 항목 수정"} okText={editing === "new" ? "추가" : "저장"} cancelText="취소" confirmLoading={saving} onOk={save} onCancel={closeEditor}>
         {draft && <Form layout="vertical" requiredMark={false}>
-          <Form.Item label="원 단어" required extra="검색 결과로 최종 연결할 대표 단어입니다."><Input value={draft.canonicalTerm} placeholder="예: 인생네컷" onChange={(event) => setDraft({ ...draft, canonicalTerm: event.target.value })} /></Form.Item>
-          <Form.Item label="허용 단어" extra="한 줄에 하나씩 입력하세요. 띄어쓰기 차이와 자주 발생하는 오타를 등록할 수 있습니다."><Input.TextArea value={draft.allowedTerms.join("\n")} rows={6} placeholder={"인생 네컷\n인샹네컷"} onChange={(event) => setDraft({ ...draft, allowedTerms: event.target.value.split(/\n/).map((term) => term.trim()).filter(Boolean) })} /></Form.Item>
+          <Form.Item label="원 단어" required><Input value={draft.canonicalTerm} placeholder="예: 인생네컷" onChange={(event) => setDraft({ ...draft, canonicalTerm: event.target.value })} /></Form.Item>
+          <Form.Item label="허용 단어"><Input.TextArea value={draft.allowedTerms.join("\n")} rows={6} placeholder={"인생 네컷\n인샹네컷"} onChange={(event) => setDraft({ ...draft, allowedTerms: event.target.value.split(/\n/).map((term) => term.trim()).filter(Boolean) })} /></Form.Item>
         </Form>}
       </Modal>
     </>

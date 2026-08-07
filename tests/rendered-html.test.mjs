@@ -157,11 +157,13 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(storeScreen, /pageSize: 30/);
   assert.match(storeScreen, /aria-label="시·도 필터"/);
   assert.match(storeScreen, /aria-label="시·군·구 필터"/);
-  assert.match(dictionaryScreen, /원 단어와 허용 단어/);
+  assert.match(dictionaryScreen, /label="원 단어"/);
+  assert.match(dictionaryScreen, /label="허용 단어"/);
   assert.match(dictionaryScreen, /placeholder="원 단어 또는 허용 단어 검색"/);
   assert.match(dictionaryScreen, /Input\.TextArea/);
   assert.match(dictionaryScreen, /adminAdapter\.saveDictionary\(\{ canonicalTerm, allowedTerms \}/);
   assert.match(dictionaryScreen, /pageSize: 30/);
+  assert.doesNotMatch(dictionaryScreen, /검색 정규화|인샹네컷.*인생네컷으로 연결/);
   assert.match(types, /sido: string/);
   assert.match(types, /sigungu: string/);
   assert.match(types, /dictionaries: DictionaryRecord\[\]/);
