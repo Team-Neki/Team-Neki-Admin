@@ -1,12 +1,12 @@
 import { mockAdminAdapter } from "./mock-admin-adapter";
-import type { AdminAdapter, AnalyticsRefreshResult } from "./types";
+import type { AdminAdapter, AnalyticsGranularity, AnalyticsRefreshResult } from "./types";
 
 type AnalyticsApiError = {
   message?: string;
 };
 
-const refreshAnalytics = async (): Promise<AnalyticsRefreshResult> => {
-  const response = await fetch("/api/amplitude/metrics", {
+const refreshAnalytics = async (granularity: AnalyticsGranularity): Promise<AnalyticsRefreshResult> => {
+  const response = await fetch(`/api/amplitude/metrics?granularity=${granularity}`, {
     headers: { Accept: "application/json" },
     cache: "no-store",
   });

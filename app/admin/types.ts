@@ -164,6 +164,8 @@ export type AnalyticsEventMetric = {
   pctDau?: number;
 };
 
+export type AnalyticsGranularity = "day" | "week" | "month";
+
 export type AnalyticsActiveUserPoint = {
   date: string;
   value: number;
@@ -171,6 +173,7 @@ export type AnalyticsActiveUserPoint = {
 
 export type AnalyticsRefreshResult = {
   source: "amplitude";
+  granularity: AnalyticsGranularity;
   fetchedAt: string;
   periodStart: string;
   periodEnd: string;
@@ -220,5 +223,5 @@ export interface AdminAdapter {
   saveBrand(draft: BrandDraft, id?: string): Promise<BrandRecord>;
   saveDictionary(draft: DictionaryDraft, id?: string): Promise<DictionaryRecord>;
   uploadPoses(input: PoseUploadInput[]): Promise<PoseRecord[]>;
-  refreshAnalytics(): Promise<AnalyticsRefreshResult>;
+  refreshAnalytics(granularity: AnalyticsGranularity): Promise<AnalyticsRefreshResult>;
 }

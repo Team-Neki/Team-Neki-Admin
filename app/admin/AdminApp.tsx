@@ -65,6 +65,7 @@ import type {
   StoreRecord,
   AnalyticsEventRecord,
   AnalyticsEventMetric,
+  AnalyticsGranularity,
   AnalyticsRefreshResult,
   QrParsingRule,
 } from "./types";
@@ -1290,8 +1291,14 @@ function StoreScreen({ stores, setStores, brands }: { stores: StoreRecord[]; set
 }
 
 const ANALYTICS_AREAS = ["전체", "앱 공통", "아카이빙", "지도", "포즈", "마이페이지"] as const;
+const ANALYTICS_GRANULARITY_OPTIONS: Array<{ label: string; value: AnalyticsGranularity }> = [
+  { label: "일별", value: "day" },
+  { label: "주별", value: "week" },
+  { label: "월별", value: "month" },
+];
+const analyticsGranularityLabel = (value: AnalyticsGranularity) => ANALYTICS_GRANULARITY_OPTIONS.find((option) => option.value === value)?.label ?? "일별";
 
-function AnalyticsScreen({ events, metrics, refreshing, refreshError, onRefresh }: { events: AnalyticsEventRecord[]; metrics?: AnalyticsRefreshResult; refreshing: boolean; refreshError?: string; onRefresh: () => void }) {
+function AnalyticsScreen({ events, metrics, granularity, refreshing, refreshError, onRefresh, onGranularityChange }: { events: AnalyticsEventRecord[]; metrics?: AnalyticsRefreshResult; granularity: AnalyticsGranularity; refreshing: boolean; refreshError?: string; onRefresh: () => void; onGranularityChange: (value: AnalyticsGranularity) => void }) {
   const [area, setArea] = useState<(typeof ANALYTICS_AREAS)[number]>("전체");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<AnalyticsEventRecord>();
@@ -1305,7 +1312,7 @@ function AnalyticsScreen({ events, metrics, refreshing, refreshError, onRefresh 
     });
   }, [area, events, query]);
   const columns: TableProps<AnalyticsEventRecord>["columns"] = [
-    { title: "이벤트명", dataIndex: "name", width: 220, render: (value, record) => <button type="button" className="table-primary-link" onClick={() => setSelected(record)}><strong>{value}</strong><span>{record.platform} · {record.sourceFile}</span></button> },
+    { title: "이벤트명", dataIndex: "name", width: 220, render: (value, record) => <button type="button" className="table-primary-link" onClick={() => setSelected(record)}><strong>{value}</strong></button> },
     { title: "기능 영역", dataIndex: "area", width: 110, render: (value) => <Tag>{value}</Tag> },
     { title: "페이지·기능", dataIndex: "screen", width: 150 },
     { title: "이번 주 발생", width: 120, render: (_, record) => formatAnalyticsMetric(metricByName.get(record.name), "total") },
@@ -1319,11 +1326,11 @@ function AnalyticsScreen({ events, metrics, refreshing, refreshError, onRefresh 
       <PageHeader view="analytics" action={<Button icon={<ReloadOutlined />} loading={refreshing} onClick={onRefresh}>새로고침</Button>} />
       <Card className="content-card analytics-intro-card">
         <div className="analytics-intro-copy"><Tag color="blue">Amplitude</Tag><Title level={3}>Amplitude 지표</Title></div>
-        <div className="analytics-summary-grid"><div><strong>{events.length}개</strong><span>정의된 이벤트</span></div><div><strong>{new Set(events.map((event) => event.area)).size}개</strong><span>기능 영역</span></div><div><strong>{formatAnalyticsActiveUsers(metrics)}</strong><span>최근 일 활성 사용자</span></div><div><strong>{metrics ? formatSchedule(metrics.fetchedAt) : "—"}</strong><span>최근 수집</span></div></div>
+        <div className="analytics-summary-grid"><div><strong>{events.length}개</strong><span>정의된 이벤트</span></div><div><strong>{new Set(events.map((event) => event.area)).size}개</strong><span>기능 영역</span></div><div><strong>{formatAnalyticsActiveUsers(metrics)}</strong><span>{metrics ? `${analyticsGranularityLabel(metrics.granularity)} 활성 사용자` : "활성 사용자"}</span></div><div><strong>{metrics ? formatSchedule(metrics.fetchedAt) : "—"}</strong><span>최근 수집</span></div></div>
       </Card>
       {refreshError && <Alert className="analytics-refresh-alert" type="warning" showIcon title={refreshError} />}
       <Card className="content-card table-card analytics-table-card">
-        <div className="toolbar analytics-toolbar"><Select value={area} onChange={setArea} aria-label="이벤트 기능 영역 필터" options={ANALYTICS_AREAS.map((item) => ({ label: item, value: item }))} /><Input.Search value={query} onChange={(event) => setQuery(event.target.value)} allowClear placeholder="이벤트명·페이지·트리거 검색" aria-label="이벤트 검색" /></div>
+        <div className="toolbar analytics-toolbar"><Segmented options={ANALYTICS_GRANULARITY_OPTIONS} value={granularity} onChange={(value) => onGranularityChange(value as AnalyticsGranularity)} aria-label="지표 조회 단위" /><Select value={area} onChange={setArea} aria-label="이벤트 기능 영역 필터" options={ANALYTICS_AREAS.map((item) => ({ label: item, value: item }))} /><Input.Search value={query} onChange={(event) => setQuery(event.target.value)} allowClear placeholder="이벤트명·페이지·트리거 검색" aria-label="이벤트 검색" /></div>
         <div className="result-summary"><Text strong>{filtered.length}개 이벤트</Text></div>
         {filtered.length ? <Table rowKey="id" columns={columns} dataSource={filtered} scroll={{ x: 1040 }} pagination={{ pageSize: 10, showSizeChanger: false, showTotal: (total) => `총 ${total}개` }} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="조건에 맞는 이벤트가 없습니다." />}
       </Card>
@@ -1847,6 +1854,7 @@ function AdminWorkspace() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [analyticsMetrics, setAnalyticsMetrics] = useState<AnalyticsRefreshResult>();
+  const [analyticsGranularity, setAnalyticsGranularity] = useState<AnalyticsGranularity>("day");
   const [analyticsRefreshing, setAnalyticsRefreshing] = useState(false);
   const [analyticsRefreshError, setAnalyticsRefreshError] = useState<string>();
 
@@ -1889,11 +1897,12 @@ function AdminWorkspace() {
     window.history.pushState({}, "", url);
   };
 
-  const refreshAnalytics = async () => {
+  const refreshAnalytics = async (requestedGranularity = analyticsGranularity) => {
+    setAnalyticsGranularity(requestedGranularity);
     setAnalyticsRefreshing(true);
     setAnalyticsRefreshError(undefined);
     try {
-      setAnalyticsMetrics(await adminAdapter.refreshAnalytics());
+      setAnalyticsMetrics(await adminAdapter.refreshAnalytics(requestedGranularity));
     } catch (refreshError) {
       setAnalyticsRefreshError(refreshError instanceof Error ? refreshError.message : "Amplitude 지표를 불러오지 못했습니다.");
     } finally {
@@ -1943,7 +1952,7 @@ function AdminWorkspace() {
               {view === "brands" && <BrandScreen brands={data.brands} dictionaries={data.dictionaries} setBrands={(update) => setData((current) => ({ ...current, brands: typeof update === "function" ? update(current.brands) : update }))} onOpenQrParsing={() => navigate("qr-parsing")} />}
               {view === "dictionary" && <DictionaryScreen dictionaries={data.dictionaries} setDictionaries={(update) => setData((current) => ({ ...current, dictionaries: typeof update === "function" ? update(current.dictionaries) : update }))} />}
               {view === "poses" && <PoseScreen poses={data.poses} setPoses={(update) => setData((current) => ({ ...current, poses: typeof update === "function" ? update(current.poses) : update }))} />}
-              {view === "analytics" && <AnalyticsScreen events={data.analyticsEvents} metrics={analyticsMetrics} refreshing={analyticsRefreshing} refreshError={analyticsRefreshError} onRefresh={() => void refreshAnalytics()} />}
+              {view === "analytics" && <AnalyticsScreen events={data.analyticsEvents} metrics={analyticsMetrics} granularity={analyticsGranularity} refreshing={analyticsRefreshing} refreshError={analyticsRefreshError} onRefresh={() => void refreshAnalytics()} onGranularityChange={(next) => void refreshAnalytics(next)} />}
               {view === "qr-parsing" && <QrParsingScreen onBack={() => navigate("brands")} />}
             </>
           )}

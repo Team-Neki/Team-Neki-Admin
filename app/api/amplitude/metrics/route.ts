@@ -17,6 +17,8 @@ type AmplitudeUsersResponse = {
   };
 };
 
+type AnalyticsGranularity = "day" | "week" | "month";
+
 const getRuntimeValue = async (name: string) => {
   let runtime: Record<string, unknown> = {};
   try {
@@ -55,7 +57,7 @@ const amplitudeRequest = async <T>(baseUrl: string, auth: string, path: string, 
   return await response.json() as T;
 };
 
-export async function GET() {
+export async function GET(request: Request) {
   const [apiKey, secretKey, region] = await Promise.all([
     getRuntimeValue("AMPLITUDE_API_KEY"),
     getRuntimeValue("AMPLITUDE_SECRET_KEY"),
@@ -66,10 +68,17 @@ export async function GET() {
   }
 
   const baseUrl = region.toLowerCase() === "eu" ? "https://analytics.eu.amplitude.com" : "https://amplitude.com";
+  const requestedGranularity = new URL(request.url).searchParams.get("granularity");
+  const granularity: AnalyticsGranularity = requestedGranularity === "week" || requestedGranularity === "month" ? requestedGranularity : "day";
+  const period = granularity === "day"
+    ? { days: 29, interval: 1 }
+    : granularity === "week"
+      ? { days: 83, interval: 7 }
+      : { days: 364, interval: 30 };
   const auth = btoa(`${apiKey}:${secretKey}`);
   const endDate = new Date();
   const startDate = new Date(endDate);
-  startDate.setUTCDate(startDate.getUTCDate() - 6);
+  startDate.setUTCDate(startDate.getUTCDate() - period.days);
 
   try {
     const [eventsResponse, usersResponse] = await Promise.all([
@@ -77,7 +86,7 @@ export async function GET() {
       amplitudeRequest<AmplitudeUsersResponse>(baseUrl, auth, "/api/2/users", new URLSearchParams({
         start: formatAmplitudeDate(startDate),
         end: formatAmplitudeDate(endDate),
-        i: "1",
+        i: String(period.interval),
         m: "active",
       })),
     ]);
@@ -86,6 +95,7 @@ export async function GET() {
     const userValues = usersResponse.data?.series?.[0] ?? [];
     return json({
       source: "amplitude",
+      granularity,
       fetchedAt: new Date().toISOString(),
       periodStart: formatDate(startDate),
       periodEnd: formatDate(endDate),
