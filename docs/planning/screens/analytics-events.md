@@ -62,5 +62,8 @@ NEKI 클라이언트가 Amplitude로 전송하는 커스텀 이벤트를 운영�
 
 - 현재 목 adapter는 `analyticsEvents` 배열을 반환한다.
 - 실제 API 연결 시 이벤트명, 영역, 화면, 트리거, 설명, 파라미터를 화면 모델로 변환한다.
+- 지표 화면의 `새로고침`은 서버 API route를 통해 Amplitude 이벤트 목록과 최근 7일 활성 사용자 데이터를 조회한다.
+- Amplitude API Key와 Secret Key는 브라우저에 전달하지 않고 서버 실행 환경의 `AMPLITUDE_API_KEY`, `AMPLITUDE_SECRET_KEY`에서 읽는다.
+- 키가 없거나 Amplitude 조회가 실패하면 목록을 유지한 채 수집 오류 상태를 표시한다.
 - 내부 enum 이름이나 분석 저장소의 원본 필드명은 화면 계약으로 고정하지 않는다.
 - 이벤트 로그 수치, 기간별 차트, CSV 다운로드는 별도 분석 기능으로 범위에서 제외한다.

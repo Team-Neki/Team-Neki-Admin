@@ -7,6 +7,7 @@ import type {
   DashboardGranularity,
   DashboardMetrics,
   DashboardMetricsQuery,
+  AnalyticsRefreshResult,
   DictionaryDraft,
   DictionaryRecord,
   LoadMode,
@@ -282,6 +283,10 @@ export const mockAdminAdapter: AdminAdapter = {
     })));
     state.poses = [...records, ...state.poses];
     return structuredClone(records);
+  },
+
+  async refreshAnalytics(): Promise<AnalyticsRefreshResult> {
+    throw new Error("Amplitude API 키를 설정한 뒤 다시 시도해 주세요.");
   },
 };
 

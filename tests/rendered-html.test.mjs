@@ -44,10 +44,12 @@ test("server-renders the Neki Admin operations shell and loading state", async (
 });
 
 test("keeps the Neki design foundation and API adapter boundary explicit", async () => {
-  const [page, adminApp, adapterEntry, mockAdapter, mockData, types, css, layout, packageJson, mockAnalytics] = await Promise.all([
+  const [page, adminApp, adapterEntry, apiAdapter, amplitudeRoute, mockAdapter, mockData, types, css, layout, packageJson, mockAnalytics] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/AdminApp.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/admin-adapter.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/admin/api-admin-adapter.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/amplitude/metrics/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/mock-admin-adapter.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/mock-admin-data.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/types.ts", import.meta.url), "utf8"),
@@ -96,11 +98,19 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(adminApp, /<Title level=\{3\}>Amplitude 지표<\/Title>/);
   assert.doesNotMatch(adminApp, /GA4/);
   assert.doesNotMatch(adminApp, /이벤트명을 누르면 상세 정보를 볼 수 있습니다/);
+  assert.match(adminApp, /<Button icon=\{<ReloadOutlined \/>\} loading=\{refreshing\} onClick=\{onRefresh\}>새로고침<\/Button>/);
+  assert.match(adminApp, /이번 주 발생/);
+  assert.match(adminApp, /최근 일 활성 사용자/);
+  assert.match(adapterEntry, /apiAdminAdapter/);
+  assert.match(apiAdapter, /fetch\("\/api\/amplitude\/metrics"/);
+  assert.match(amplitudeRoute, /AMPLITUDE_API_KEY/);
+  assert.match(amplitudeRoute, /\/api\/2\/events\/list/);
+  assert.match(amplitudeRoute, /\/api\/2\/users/);
   assert.match(adminApp, /function QrParsingScreen/);
   assert.match(adminApp, /Android 파싱 로직/);
   assert.match(adminApp, /WebView 진입 즉시/);
   assert.match(adminApp, /onOpenQrParsing/);
-  assert.match(adminApp, /view === "analytics" && <AnalyticsScreen events=\{data\.analyticsEvents\}/);
+  assert.match(adminApp, /view === "analytics" && <AnalyticsScreen events=\{data\.analyticsEvents\} metrics=\{analyticsMetrics\}/);
   assert.match(adminApp, /view === "qr-parsing" && <QrParsingScreen onBack=\{\(\) => navigate\("brands"\)\}/);
   assert.match(adminApp, /type BrandQrFilter = "supported" \| "unsupported"/);
   assert.match(adminApp, /type BrandMapFilter = "visible" \| "hidden"/);
@@ -173,7 +183,7 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(mockData, /canonicalTerm: "인생네컷"[\s\S]*인샹네컷/);
   assert.match(mockAdapter, /async saveDictionary\(draft: DictionaryDraft/);
   assert.match(adminApp, /from "\.\/admin-adapter"/);
-  assert.match(adapterEntry, /AdminAdapter = mockAdminAdapter/);
+  assert.match(adapterEntry, /AdminAdapter = apiAdminAdapter/);
   assert.match(mockAdapter, /no HTTP client, route, backend enum, or API field/);
   assert.match(mockData, /notification-240710-12/);
   assert.match(mockData, /nickname: "네컷요정"/);

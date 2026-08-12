@@ -23,9 +23,9 @@
 - 복수 조건 필터는 `Checkbox.Group`, 한 축의 보기 전환은 `Segmented`, 기준 기간 선택은 `DatePicker`, 목록 일괄 작업은 `Table.rowSelection`을 사용합니다. 데이터 목록은 열 `responsive`와 `scroll` 설정으로 화면 폭에 대응합니다.
 - 공식 문서: [For Agents](https://ant.design/docs/react/for-agents/) · [Checkbox](https://ant.design/components/checkbox/) · [DatePicker](https://ant.design/components/date-picker/) · [Segmented](https://ant.design/components/segmented/) · [Table](https://ant.design/components/table/) · [Theme](https://ant.design/docs/react/customize-theme/)
 
-현재 프로토타입은 외부 요청 없이 `app/admin/mock-admin-data.ts`의 시드 데이터와 메모리 기반 비동기 adapter만 사용합니다. 포즈 업로드도 브라우저 메모리에만 저장되어 새로고침하면 초기화됩니다. 화면은 `AdminAdapter` 계약에만 의존하므로 실제 API, 인증, 관리자 권한, 이미지 스토리지, 주소 검색, 푸시·Discord 연동은 백엔드 계약과 운영 정책이 확정된 뒤 별도 구현체로 연결할 수 있습니다.
+운영 CRUD와 포즈 업로드는 `app/admin/mock-admin-data.ts`의 시드 데이터와 메모리 기반 adapter를 사용합니다. 지표 화면의 새로고침은 서버 API route를 통해 Amplitude 데이터를 조회하며, API 키가 없으면 설정 안내 상태를 표시합니다. 포즈 업로드는 브라우저 메모리에만 저장되어 새로고침하면 초기화됩니다.
 
-실 API 연결 시에는 `AdminAdapter`를 구현하는 `api-admin-adapter.ts`를 추가하고, `app/admin/admin-adapter.ts`의 조립 지점만 교체합니다. 조회·발송·예약 취소·주소 검색·중복 확인·저장·폐점·포즈 업로드가 모두 이 계약을 통과하므로 화면 컴포넌트나 목 데이터 파일을 수정할 필요가 없습니다.
+Amplitude 조회 키는 `.env.local` 또는 배포 환경의 `AMPLITUDE_API_KEY`, `AMPLITUDE_SECRET_KEY`로 설정합니다. EU 리전에 있는 프로젝트만 `AMPLITUDE_REGION=eu`로 지정합니다.
 
 렌더 검증용으로 URL에 `state=empty` 또는 `state=error`를 추가하면 목록의 빈 화면과 조회 오류 상태를 재현할 수 있습니다.
 
@@ -73,6 +73,8 @@ cp .env.local.example .env.local
 - `app/page.tsx`: 어드민 애플리케이션 진입점
 - `app/admin/AdminApp.tsx`: 공통 셸과 사용자 지표·수동 알림·부스·브랜드·포즈·지표·QR 파싱 화면
 - `app/admin/admin-adapter.ts`: mock/API 구현체를 선택하는 단일 조립 지점
+- `app/admin/api-admin-adapter.ts`: 지표 새로고침과 기존 목 adapter를 조합하는 구현체
+- `app/api/amplitude/metrics/route.ts`: 서버에서 Amplitude 조회 API를 호출하는 route
 - `app/admin/mock-admin-data.ts`: 검색·필터·페이지네이션 검증용 프로토타입 시드 데이터
 - `app/admin/mock-admin-adapter.ts`: 메모리 기반 목 조회·변경 구현체
 - `app/admin/types.ts`: 화면 모델과 구현체 공통 `AdminAdapter` 계약

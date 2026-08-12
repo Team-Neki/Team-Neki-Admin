@@ -64,6 +64,8 @@ import type {
   StoreDraft,
   StoreRecord,
   AnalyticsEventRecord,
+  AnalyticsEventMetric,
+  AnalyticsRefreshResult,
   QrParsingRule,
 } from "./types";
 import { mockQrParsingRules } from "./mock-analytics-events";
@@ -1289,10 +1291,11 @@ function StoreScreen({ stores, setStores, brands }: { stores: StoreRecord[]; set
 
 const ANALYTICS_AREAS = ["전체", "앱 공통", "아카이빙", "지도", "포즈", "마이페이지"] as const;
 
-function AnalyticsScreen({ events }: { events: AnalyticsEventRecord[] }) {
+function AnalyticsScreen({ events, metrics, refreshing, refreshError, onRefresh }: { events: AnalyticsEventRecord[]; metrics?: AnalyticsRefreshResult; refreshing: boolean; refreshError?: string; onRefresh: () => void }) {
   const [area, setArea] = useState<(typeof ANALYTICS_AREAS)[number]>("전체");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<AnalyticsEventRecord>();
+  const metricByName = useMemo(() => new Map((metrics?.events ?? []).map((metric) => [metric.name, metric])), [metrics]);
   const filtered = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase();
     return events.filter((event) => {
@@ -1305,17 +1308,20 @@ function AnalyticsScreen({ events }: { events: AnalyticsEventRecord[] }) {
     { title: "이벤트명", dataIndex: "name", width: 220, render: (value, record) => <button type="button" className="table-primary-link" onClick={() => setSelected(record)}><strong>{value}</strong><span>{record.platform} · {record.sourceFile}</span></button> },
     { title: "기능 영역", dataIndex: "area", width: 110, render: (value) => <Tag>{value}</Tag> },
     { title: "페이지·기능", dataIndex: "screen", width: 150 },
+    { title: "이번 주 발생", width: 120, render: (_, record) => formatAnalyticsMetric(metricByName.get(record.name), "total") },
+    { title: "고유 사용자", width: 120, render: (_, record) => formatAnalyticsMetric(metricByName.get(record.name), "uniques") },
     { title: "파라미터", width: 210, render: (_, record) => record.parameters.length ? <Space size={[4, 4]} wrap>{record.parameters.map((parameter) => <Tag key={parameter.name} color="blue">{parameter.name}{parameter.optional ? " · 선택" : ""}</Tag>)}</Space> : <Text type="secondary">없음</Text> },
     { title: "트리거 시점", dataIndex: "trigger", width: 320, ellipsis: true },
   ];
 
   return (
     <>
-      <PageHeader view="analytics" />
+      <PageHeader view="analytics" action={<Button icon={<ReloadOutlined />} loading={refreshing} onClick={onRefresh}>새로고침</Button>} />
       <Card className="content-card analytics-intro-card">
         <div className="analytics-intro-copy"><Tag color="blue">Amplitude</Tag><Title level={3}>Amplitude 지표</Title></div>
-        <div className="analytics-summary-grid"><div><strong>{events.length}개</strong><span>정의된 이벤트</span></div><div><strong>{new Set(events.map((event) => event.area)).size}개</strong><span>기능 영역</span></div><div><strong>Android</strong><span>코드 확인 기준</span></div></div>
+        <div className="analytics-summary-grid"><div><strong>{events.length}개</strong><span>정의된 이벤트</span></div><div><strong>{new Set(events.map((event) => event.area)).size}개</strong><span>기능 영역</span></div><div><strong>{formatAnalyticsActiveUsers(metrics)}</strong><span>최근 일 활성 사용자</span></div><div><strong>{metrics ? formatSchedule(metrics.fetchedAt) : "—"}</strong><span>최근 수집</span></div></div>
       </Card>
+      {refreshError && <Alert className="analytics-refresh-alert" type="warning" showIcon title={refreshError} />}
       <Card className="content-card table-card analytics-table-card">
         <div className="toolbar analytics-toolbar"><Select value={area} onChange={setArea} aria-label="이벤트 기능 영역 필터" options={ANALYTICS_AREAS.map((item) => ({ label: item, value: item }))} /><Input.Search value={query} onChange={(event) => setQuery(event.target.value)} allowClear placeholder="이벤트명·페이지·트리거 검색" aria-label="이벤트 검색" /></div>
         <div className="result-summary"><Text strong>{filtered.length}개 이벤트</Text></div>
@@ -1327,6 +1333,16 @@ function AnalyticsScreen({ events }: { events: AnalyticsEventRecord[] }) {
     </>
   );
 }
+
+const formatAnalyticsMetric = (metric: AnalyticsEventMetric | undefined, key: "total" | "uniques") => {
+  const value = metric?.[key];
+  return typeof value === "number" ? value.toLocaleString("ko-KR") : "—";
+};
+
+const formatAnalyticsActiveUsers = (metrics?: AnalyticsRefreshResult) => {
+  const value = metrics?.activeUsers.at(-1)?.value;
+  return typeof value === "number" ? `${value.toLocaleString("ko-KR")}명` : "—";
+};
 
 function QrParsingScreen({ onBack }: { onBack: () => void }) {
   const [platform, setPlatform] = useState<"Android" | "iOS">("Android");
@@ -1830,6 +1846,9 @@ function AdminWorkspace() {
   const [loadMode, setLoadMode] = useState<LoadMode>("success");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [analyticsMetrics, setAnalyticsMetrics] = useState<AnalyticsRefreshResult>();
+  const [analyticsRefreshing, setAnalyticsRefreshing] = useState(false);
+  const [analyticsRefreshError, setAnalyticsRefreshError] = useState<string>();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1868,6 +1887,18 @@ function AdminWorkspace() {
     const url = new URL(window.location.href);
     url.searchParams.set("view", next);
     window.history.pushState({}, "", url);
+  };
+
+  const refreshAnalytics = async () => {
+    setAnalyticsRefreshing(true);
+    setAnalyticsRefreshError(undefined);
+    try {
+      setAnalyticsMetrics(await adminAdapter.refreshAnalytics());
+    } catch (refreshError) {
+      setAnalyticsRefreshError(refreshError instanceof Error ? refreshError.message : "Amplitude 지표를 불러오지 못했습니다.");
+    } finally {
+      setAnalyticsRefreshing(false);
+    }
   };
 
   return (
@@ -1912,7 +1943,7 @@ function AdminWorkspace() {
               {view === "brands" && <BrandScreen brands={data.brands} dictionaries={data.dictionaries} setBrands={(update) => setData((current) => ({ ...current, brands: typeof update === "function" ? update(current.brands) : update }))} onOpenQrParsing={() => navigate("qr-parsing")} />}
               {view === "dictionary" && <DictionaryScreen dictionaries={data.dictionaries} setDictionaries={(update) => setData((current) => ({ ...current, dictionaries: typeof update === "function" ? update(current.dictionaries) : update }))} />}
               {view === "poses" && <PoseScreen poses={data.poses} setPoses={(update) => setData((current) => ({ ...current, poses: typeof update === "function" ? update(current.poses) : update }))} />}
-              {view === "analytics" && <AnalyticsScreen events={data.analyticsEvents} />}
+              {view === "analytics" && <AnalyticsScreen events={data.analyticsEvents} metrics={analyticsMetrics} refreshing={analyticsRefreshing} refreshError={analyticsRefreshError} onRefresh={() => void refreshAnalytics()} />}
               {view === "qr-parsing" && <QrParsingScreen onBack={() => navigate("brands")} />}
             </>
           )}

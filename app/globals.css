@@ -306,12 +306,13 @@ button { -webkit-tap-highlight-color: transparent; }
 .analytics-intro-copy .ant-tag { margin: 0 0 10px; border: 0; border-radius: var(--radius-full); font-size: 11px; font-weight: 750; }
 .analytics-intro-copy h3 { margin: 0 0 7px !important; font-size: 20px !important; }
 .analytics-intro-copy p { max-width: 720px; margin: 0 !important; line-height: 1.65; }
-.analytics-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(86px, 1fr)); gap: 8px; }
+.analytics-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(86px, 1fr)); gap: 8px; }
 .analytics-summary-grid > div { display: grid; min-width: 92px; gap: 4px; padding: 12px 14px; border: 1px solid var(--gray-75); border-radius: 12px; background: var(--gray-25); }
 .analytics-summary-grid strong { font-size: 20px; letter-spacing: -0.03em; }
 .analytics-summary-grid span { color: var(--gray-500); font-size: 11px; white-space: nowrap; }
 .analytics-toolbar { grid-template-columns: 180px minmax(220px, 1fr); padding: 18px 20px 14px; }
 .analytics-table-card .result-summary { padding-bottom: 14px; }
+.analytics-refresh-alert { margin-bottom: 16px; }
 .analytics-detail { display: grid; gap: 18px; }
 .analytics-detail h5 { margin: 0 !important; }
 .qr-parsing-note { margin-bottom: 16px; }
@@ -477,7 +478,7 @@ button { -webkit-tap-highlight-color: transparent; }
   .page-tabs .ant-badge { margin-left: 4px; }
   .audience-radio-group { gap: 12px 18px; }
   .result-summary { flex-wrap: wrap; }
-  .analytics-summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .analytics-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
   .analytics-summary-grid > div { min-width: 0; padding: 10px; }
   .analytics-summary-grid strong { font-size: 17px; }
   .analytics-summary-grid span { overflow: hidden; text-overflow: ellipsis; }

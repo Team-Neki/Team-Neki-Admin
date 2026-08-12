@@ -157,6 +157,27 @@ export type AnalyticsEventRecord = {
   sourceFile: string;
 };
 
+export type AnalyticsEventMetric = {
+  name: string;
+  total: number;
+  uniques?: number;
+  pctDau?: number;
+};
+
+export type AnalyticsActiveUserPoint = {
+  date: string;
+  value: number;
+};
+
+export type AnalyticsRefreshResult = {
+  source: "amplitude";
+  fetchedAt: string;
+  periodStart: string;
+  periodEnd: string;
+  events: AnalyticsEventMetric[];
+  activeUsers: AnalyticsActiveUserPoint[];
+};
+
 export type QrParsingRule = {
   id: string;
   platform: "Android" | "iOS";
@@ -199,4 +220,5 @@ export interface AdminAdapter {
   saveBrand(draft: BrandDraft, id?: string): Promise<BrandRecord>;
   saveDictionary(draft: DictionaryDraft, id?: string): Promise<DictionaryRecord>;
   uploadPoses(input: PoseUploadInput[]): Promise<PoseRecord[]>;
+  refreshAnalytics(): Promise<AnalyticsRefreshResult>;
 }
