@@ -12,7 +12,7 @@
 | 브랜드 관리 | [unsupported-brand-management.md](./unsupported-brand-management.md) | 전체 브랜드 목록, QR 지원·지도 표시 필터, 브랜드 추가·수정 |
 | 사전 관리 | [dictionary-management.md](./dictionary-management.md) | 원 단어·허용 단어 목록, 검색 정규화 사전 추가·수정 |
 | 포즈 관리 | [pose-management.md](./pose-management.md) | 포즈 목록, 인원수 필터, 포즈 업로드 |
-| 이벤트 | [analytics-events.md](./analytics-events.md) | Amplitude 이벤트 31개, 기능 영역·페이지별 조회 |
+| 지표 | [analytics-events.md](./analytics-events.md) | Amplitude 이벤트 31개, 기능 영역·페이지별 조회 |
 
 플랫폼별 브랜드 파싱과 이미지 획득 규칙은 [QR 이미지 획득·화이트리스트 기준](../qr-platform-flow.md)에 정리하고, 브랜드 관리 화면의 `QR 파싱 로직` 버튼으로 조회한다.
 

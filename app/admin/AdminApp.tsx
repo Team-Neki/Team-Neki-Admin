@@ -84,7 +84,7 @@ const VIEW_META: Record<ViewKey, { title: string }> = {
   brands: { title: "브랜드 관리" },
   dictionary: { title: "사전 관리" },
   poses: { title: "포즈 관리" },
-  analytics: { title: "이벤트" },
+  analytics: { title: "지표" },
   "qr-parsing": { title: "QR 파싱 로직" },
 };
 
@@ -99,7 +99,7 @@ const menuItems: MenuProps["items"] = [
       { key: "brands", label: "브랜드 관리" },
       { key: "dictionary", label: "사전 관리" },
       { key: "poses", label: "포즈 관리" },
-      { key: "analytics", label: "이벤트" },
+      { key: "analytics", label: "지표" },
     ],
   },
 ];
@@ -111,7 +111,7 @@ const mobileNavItems: Array<{ key: ViewKey; label: string }> = [
   { key: "brands", label: "브랜드" },
   { key: "dictionary", label: "사전" },
   { key: "poses", label: "포즈" },
-  { key: "analytics", label: "이벤트" },
+  { key: "analytics", label: "지표" },
 ];
 
 const audienceLabel = (audience: NotificationAudience, recipients: NotificationRecipient[] = []) => {
@@ -1313,12 +1313,12 @@ function AnalyticsScreen({ events }: { events: AnalyticsEventRecord[] }) {
     <>
       <PageHeader view="analytics" />
       <Card className="content-card analytics-intro-card">
-        <div className="analytics-intro-copy"><Tag color="blue">Amplitude</Tag><Title level={3}>NEKI GA4 이벤트</Title><Paragraph type="secondary">Android 클라이언트의 Amplitude 이벤트 정의와 실제 호출 화면을 기능 영역별로 조회합니다. 이벤트를 누르면 파라미터와 트리거 설명을 확인할 수 있습니다.</Paragraph></div>
+        <div className="analytics-intro-copy"><Tag color="blue">Amplitude</Tag><Title level={3}>Amplitude 지표</Title></div>
         <div className="analytics-summary-grid"><div><strong>{events.length}개</strong><span>정의된 이벤트</span></div><div><strong>{new Set(events.map((event) => event.area)).size}개</strong><span>기능 영역</span></div><div><strong>Android</strong><span>코드 확인 기준</span></div></div>
       </Card>
       <Card className="content-card table-card analytics-table-card">
         <div className="toolbar analytics-toolbar"><Select value={area} onChange={setArea} aria-label="이벤트 기능 영역 필터" options={ANALYTICS_AREAS.map((item) => ({ label: item, value: item }))} /><Input.Search value={query} onChange={(event) => setQuery(event.target.value)} allowClear placeholder="이벤트명·페이지·트리거 검색" aria-label="이벤트 검색" /></div>
-        <div className="result-summary"><Text strong>{filtered.length}개 이벤트</Text><Text type="secondary">이벤트명을 누르면 상세 정보를 볼 수 있습니다.</Text></div>
+        <div className="result-summary"><Text strong>{filtered.length}개 이벤트</Text></div>
         {filtered.length ? <Table rowKey="id" columns={columns} dataSource={filtered} scroll={{ x: 1040 }} pagination={{ pageSize: 10, showSizeChanger: false, showTotal: (total) => `총 ${total}개` }} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="조건에 맞는 이벤트가 없습니다." />}
       </Card>
       <Modal open={Boolean(selected)} title={selected?.name} width={700} footer={<Button onClick={() => setSelected(undefined)}>닫기</Button>} onCancel={() => setSelected(undefined)}>

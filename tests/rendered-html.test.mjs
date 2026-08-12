@@ -90,11 +90,12 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(adminApp, /key: "brands", label: "브랜드 관리"/);
   assert.match(adminApp, /dictionary: \{ title: "사전 관리" \}/);
   assert.match(adminApp, /key: "dictionary", label: "사전 관리"/);
-  assert.match(adminApp, /analytics: \{ title: "이벤트" \}/);
-  assert.match(adminApp, /key: "analytics", label: "이벤트"/);
+  assert.match(adminApp, /analytics: \{ title: "지표" \}/);
+  assert.match(adminApp, /key: "analytics", label: "지표"/);
   assert.match(adminApp, /function AnalyticsScreen/);
-  assert.match(adminApp, /NEKI GA4 이벤트/);
-  assert.match(adminApp, /이벤트명을 누르면 상세 정보를 볼 수 있습니다/);
+  assert.match(adminApp, /<Title level=\{3\}>Amplitude 지표<\/Title>/);
+  assert.doesNotMatch(adminApp, /GA4/);
+  assert.doesNotMatch(adminApp, /이벤트명을 누르면 상세 정보를 볼 수 있습니다/);
   assert.match(adminApp, /function QrParsingScreen/);
   assert.match(adminApp, /Android 파싱 로직/);
   assert.match(adminApp, /WebView 진입 즉시/);

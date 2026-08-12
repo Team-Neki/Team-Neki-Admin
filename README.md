@@ -1,6 +1,6 @@
 # Neki Admin
 
-네키 서비스 운영자를 위한 관리자 페이지입니다. 기존 Figma 기반 토큰과 Ant Design 구성 위에 사용자 지표, 수동 알림, 부스 관리, 브랜드 관리, 포즈 관리, Amplitude 이벤트 조회 업무 흐름을 구현했습니다.
+네키 서비스 운영자를 위한 관리자 페이지입니다. 기존 Figma 기반 토큰과 Ant Design 구성 위에 사용자 지표, 수동 알림, 부스 관리, 브랜드 관리, 포즈 관리, Amplitude 지표 조회 업무 흐름을 구현했습니다.
 
 ## 현재 범위
 
@@ -10,7 +10,7 @@
 - 부스 검색·필터, 등록·상세·수정, 선택 모드 기반 일괄 폐점 처리
 - 전체 브랜드의 Android QR·iOS QR·지도 표시 상태, 3행 체크박스 조합 필터, 브랜드 추가·수정
 - 포즈 이미지 다중 업로드·미리보기, 이미지 목록과 1~4인 필터
-- Amplitude 이벤트 31개를 기능 영역·페이지·파라미터별 조회
+- 지표 탭에서 Amplitude 이벤트 31개를 기능 영역·페이지·파라미터별 조회
 - 브랜드 관리에서 Android·iOS QR 파싱 로직과 이미지 획득 규칙 조회
 - 조회 로딩·빈 화면·오류·재시도와 작업 성공·실패 상태
 - Figma 기반 컬러, Pretendard 타이포, 8/12/20/999px 반경 토큰
@@ -71,7 +71,7 @@ cp .env.local.example .env.local
 ## 주요 파일
 
 - `app/page.tsx`: 어드민 애플리케이션 진입점
-- `app/admin/AdminApp.tsx`: 공통 셸과 사용자 지표·수동 알림·부스·브랜드·포즈·이벤트·QR 파싱 화면
+- `app/admin/AdminApp.tsx`: 공통 셸과 사용자 지표·수동 알림·부스·브랜드·포즈·지표·QR 파싱 화면
 - `app/admin/admin-adapter.ts`: mock/API 구현체를 선택하는 단일 조립 지점
 - `app/admin/mock-admin-data.ts`: 검색·필터·페이지네이션 검증용 프로토타입 시드 데이터
 - `app/admin/mock-admin-adapter.ts`: 메모리 기반 목 조회·변경 구현체
