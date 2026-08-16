@@ -1315,7 +1315,7 @@ function AnalyticsScreen({ events, metrics, granularity, refreshing, refreshErro
     { title: "이벤트명", dataIndex: "name", width: 220, render: (value, record) => <button type="button" className="table-primary-link" onClick={() => setSelected(record)}><strong>{value}</strong></button> },
     { title: "기능 영역", dataIndex: "area", width: 110, render: (value) => <Tag>{value}</Tag> },
     { title: "페이지·기능", dataIndex: "screen", width: 150 },
-    { title: "이번 주 발생", width: 120, render: (_, record) => formatAnalyticsMetric(metricByName.get(record.name), "total") },
+    { title: "선택 기간 발생", width: 120, render: (_, record) => formatAnalyticsMetric(metricByName.get(record.name), "total") },
     { title: "고유 사용자", width: 120, render: (_, record) => formatAnalyticsMetric(metricByName.get(record.name), "uniques") },
     { title: "파라미터", width: 210, render: (_, record) => record.parameters.length ? <Space size={[4, 4]} wrap>{record.parameters.map((parameter) => <Tag key={parameter.name} color="blue">{parameter.name}{parameter.optional ? " · 선택" : ""}</Tag>)}</Space> : <Text type="secondary">없음</Text> },
     { title: "트리거 시점", dataIndex: "trigger", width: 320, ellipsis: true },

@@ -1,19 +1,25 @@
-type AmplitudeEvent = {
-  value?: string;
-  display?: string;
-  totals?: number;
-  uniques?: number;
-  pct_dau?: number;
-};
-
-type AmplitudeEventListResponse = {
-  data?: AmplitudeEvent[];
-};
-
 type AmplitudeUsersResponse = {
   data?: {
     xValues?: string[];
     series?: number[][];
+  };
+};
+
+type AmplitudeTaxonomyEvent = {
+  event_type?: string;
+  deleted?: string | null;
+  is_active?: boolean;
+  is_hidden_from_dropdowns?: boolean;
+};
+
+type AmplitudeTaxonomyResponse = {
+  data?: AmplitudeTaxonomyEvent[];
+};
+
+type AmplitudeSegmentationResponse = {
+  data?: {
+    series?: number[][];
+    seriesCollapsed?: Array<Array<{ value?: number }>>;
   };
 };
 
@@ -57,6 +63,26 @@ const amplitudeRequest = async <T>(baseUrl: string, auth: string, path: string, 
   return await response.json() as T;
 };
 
+const withConcurrency = async <T, R>(items: T[], limit: number, task: (item: T) => Promise<R>) => {
+  const results: R[] = [];
+  let nextIndex = 0;
+  const worker = async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await task(items[index]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => worker()));
+  return results;
+};
+
+const getCollapsedMetric = (response: AmplitudeSegmentationResponse) => {
+  const collapsed = response.data?.seriesCollapsed?.[0]?.[0]?.value;
+  if (typeof collapsed === "number") return collapsed;
+  return response.data?.series?.[0]?.reduce((total, value) => total + Number(value || 0), 0) ?? 0;
+};
+
 export async function GET(request: Request) {
   const [apiKey, secretKey, region] = await Promise.all([
     getRuntimeValue("AMPLITUDE_API_KEY"),
@@ -81,8 +107,8 @@ export async function GET(request: Request) {
   startDate.setUTCDate(startDate.getUTCDate() - period.days);
 
   try {
-    const [eventsResponse, usersResponse] = await Promise.all([
-      amplitudeRequest<AmplitudeEventListResponse>(baseUrl, auth, "/api/2/events/list"),
+    const [taxonomyResponse, usersResponse] = await Promise.all([
+      amplitudeRequest<AmplitudeTaxonomyResponse>(baseUrl, auth, "/api/2/taxonomy/event"),
       amplitudeRequest<AmplitudeUsersResponse>(baseUrl, auth, "/api/2/users", new URLSearchParams({
         start: formatAmplitudeDate(startDate),
         end: formatAmplitudeDate(endDate),
@@ -90,6 +116,24 @@ export async function GET(request: Request) {
         m: "active",
       })),
     ]);
+
+    const eventNames = Array.from(new Set((taxonomyResponse.data ?? [])
+      .filter((event) => event.event_type && event.deleted == null && event.is_active !== false && event.is_hidden_from_dropdowns !== true)
+      .map((event) => event.event_type as string)));
+    const events = await withConcurrency(eventNames, 5, async (name) => {
+      const searchBase = {
+        e: JSON.stringify({ event_type: name }),
+        start: formatAmplitudeDate(startDate),
+        end: formatAmplitudeDate(endDate),
+      };
+      const totalResponse = await Promise.resolve().then(() => amplitudeRequest<AmplitudeSegmentationResponse>(baseUrl, auth, "/api/2/events/segmentation", new URLSearchParams({ ...searchBase, m: "totals" }))).catch(() => undefined);
+      const uniqueResponse = await Promise.resolve().then(() => amplitudeRequest<AmplitudeSegmentationResponse>(baseUrl, auth, "/api/2/events/segmentation", new URLSearchParams({ ...searchBase, m: "uniques" }))).catch(() => undefined);
+      return {
+        name,
+        total: totalResponse ? getCollapsedMetric(totalResponse) : 0,
+        uniques: uniqueResponse ? getCollapsedMetric(uniqueResponse) : 0,
+      };
+    });
 
     const userDates = usersResponse.data?.xValues ?? [];
     const userValues = usersResponse.data?.series?.[0] ?? [];
@@ -99,12 +143,7 @@ export async function GET(request: Request) {
       fetchedAt: new Date().toISOString(),
       periodStart: formatDate(startDate),
       periodEnd: formatDate(endDate),
-      events: (eventsResponse.data ?? []).map((event) => ({
-        name: event.value ?? event.display ?? "",
-        total: Number(event.totals ?? 0),
-        ...(typeof event.uniques === "number" ? { uniques: event.uniques } : {}),
-        ...(typeof event.pct_dau === "number" ? { pctDau: event.pct_dau } : {}),
-      })).filter((event) => event.name),
+      events,
       activeUsers: userDates.map((date, index) => ({ date, value: Number(userValues[index] ?? 0) })),
     });
   } catch (error) {

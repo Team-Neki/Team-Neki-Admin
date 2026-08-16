@@ -100,7 +100,7 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.doesNotMatch(adminApp, /GA4/);
   assert.doesNotMatch(adminApp, /이벤트명을 누르면 상세 정보를 볼 수 있습니다/);
   assert.match(adminApp, /<Button icon=\{<ReloadOutlined \/>\} loading=\{refreshing\} onClick=\{onRefresh\}>새로고침<\/Button>/);
-  assert.match(adminApp, /이번 주 발생/);
+  assert.match(adminApp, /선택 기간 발생/);
   assert.match(adminApp, /활성 사용자/);
   assert.match(adminApp, /일별/);
   assert.match(adminApp, /주별/);
@@ -108,7 +108,8 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(adapterEntry, /apiAdminAdapter/);
   assert.match(apiAdapter, /fetch\(`\/api\/amplitude\/metrics\?granularity=\$\{granularity\}`/);
   assert.match(amplitudeRoute, /AMPLITUDE_API_KEY/);
-  assert.match(amplitudeRoute, /\/api\/2\/events\/list/);
+  assert.match(amplitudeRoute, /\/api\/2\/taxonomy\/event/);
+  assert.match(amplitudeRoute, /\/api\/2\/events\/segmentation/);
   assert.match(amplitudeRoute, /\/api\/2\/users/);
   assert.match(amplitudeRoute, /granularity/);
   assert.match(adminApp, /function QrParsingScreen/);
