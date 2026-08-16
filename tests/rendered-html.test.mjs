@@ -92,8 +92,8 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(adminApp, /key: "brands", label: "브랜드 관리"/);
   assert.match(adminApp, /dictionary: \{ title: "사전 관리" \}/);
   assert.match(adminApp, /key: "dictionary", label: "사전 관리"/);
-  assert.match(adminApp, /analytics: \{ title: "지표" \}/);
-  assert.match(adminApp, /key: "analytics", label: "지표"/);
+  assert.match(adminApp, /analytics: \{ title: "Amplitude 지표" \}/);
+  assert.match(adminApp, /key: "analytics", label: "Amplitude 지표"/);
   assert.match(adminApp, /function AnalyticsScreen/);
   assert.doesNotMatch(adminApp, /<span>\{record\.platform\} · \{record\.sourceFile\}<\/span>/);
   assert.match(adminApp, /<Title level=\{3\}>Amplitude 지표<\/Title>/);

@@ -87,7 +87,7 @@ const VIEW_META: Record<ViewKey, { title: string }> = {
   brands: { title: "브랜드 관리" },
   dictionary: { title: "사전 관리" },
   poses: { title: "포즈 관리" },
-  analytics: { title: "지표" },
+  analytics: { title: "Amplitude 지표" },
   "qr-parsing": { title: "QR 파싱 로직" },
 };
 
@@ -102,7 +102,7 @@ const menuItems: MenuProps["items"] = [
       { key: "brands", label: "브랜드 관리" },
       { key: "dictionary", label: "사전 관리" },
       { key: "poses", label: "포즈 관리" },
-      { key: "analytics", label: "지표" },
+      { key: "analytics", label: "Amplitude 지표" },
     ],
   },
 ];
@@ -114,7 +114,7 @@ const mobileNavItems: Array<{ key: ViewKey; label: string }> = [
   { key: "brands", label: "브랜드" },
   { key: "dictionary", label: "사전" },
   { key: "poses", label: "포즈" },
-  { key: "analytics", label: "지표" },
+  { key: "analytics", label: "Amplitude 지표" },
 ];
 
 const audienceLabel = (audience: NotificationAudience, recipients: NotificationRecipient[] = []) => {
