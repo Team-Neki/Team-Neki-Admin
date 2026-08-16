@@ -58,6 +58,7 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
     readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/mock-analytics-events.ts", import.meta.url), "utf8"),
   ]);
+  const localStorageSource = await readFile(new URL("../app/admin/local-admin-storage.ts", import.meta.url), "utf8");
 
   assert.match(page, /AdminApp/);
   assert.match(adminApp, /from "antd"/);
@@ -190,7 +191,10 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(mockAdapter, /async saveDictionary\(draft: DictionaryDraft/);
   assert.match(adminApp, /from "\.\/admin-adapter"/);
   assert.match(adapterEntry, /AdminAdapter = apiAdminAdapter/);
-  assert.match(mockAdapter, /no HTTP client, route, backend enum, or API field/);
+  assert.match(mockAdapter, /Prototype records are stored per browser/);
+  assert.match(mockAdapter, /ensureStateHydrated/);
+  assert.match(localStorageSource, /neki-admin:prototype-snapshot:v1/);
+  assert.match(localStorageSource, /indexedDB/);
   assert.match(mockData, /notification-240710-12/);
   assert.match(mockData, /nickname: "네컷요정"/);
   assert.match(mockAdapter, /async searchNotificationRecipients\(query: string\)/);

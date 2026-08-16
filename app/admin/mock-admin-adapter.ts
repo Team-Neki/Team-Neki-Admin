@@ -1,4 +1,5 @@
 import { mockAddressSuggestions, mockAdminSnapshot, mockNotificationRecipients } from "./mock-admin-data";
+import { loadLocalAdminSnapshot, saveLocalAdminSnapshot } from "./local-admin-storage";
 import type {
   AdminAdapter,
   AdminSnapshot,
@@ -29,8 +30,24 @@ const readImage = (file: File) => new Promise<string>((resolve, reject) => {
   reader.readAsDataURL(file);
 });
 
-// Prototype mutations live in memory and reset whenever the dev process reloads.
 const state: AdminSnapshot = structuredClone(mockAdminSnapshot);
+let stateHydration: Promise<void> | undefined;
+
+const ensureStateHydrated = () => {
+  if (stateHydration) return stateHydration;
+  stateHydration = loadLocalAdminSnapshot().then((stored) => {
+    if (!stored) return;
+    if (Array.isArray(stored.notifications)) state.notifications = stored.notifications;
+    if (Array.isArray(stored.stores)) state.stores = stored.stores;
+    if (Array.isArray(stored.brands)) state.brands = stored.brands;
+    if (Array.isArray(stored.dictionaries)) state.dictionaries = stored.dictionaries;
+    if (Array.isArray(stored.poses)) state.poses = stored.poses;
+    if (Array.isArray(stored.analyticsEvents)) state.analyticsEvents = stored.analyticsEvents;
+  });
+  return stateHydration;
+};
+
+const persistState = () => saveLocalAdminSnapshot(state);
 
 const today = () =>
   new Intl.DateTimeFormat("ko-KR", {
@@ -75,6 +92,7 @@ export const mockAdminAdapter: AdminAdapter = {
     await wait();
     if (mode === "error") throw new Error("운영 데이터를 불러오지 못했습니다.");
     if (mode === "empty") return { notifications: [], stores: [], brands: [], dictionaries: [], poses: [], analyticsEvents: [] };
+    await ensureStateHydrated();
     return structuredClone(state);
   },
 
@@ -155,6 +173,7 @@ export const mockAdminAdapter: AdminAdapter = {
 
   async sendNotification(draft: NotificationDraft, expectedRecipients: number): Promise<NotificationRecord> {
     await wait(620);
+    await ensureStateHydrated();
     const isScheduled = draft.delivery === "scheduled";
     const record: NotificationRecord = {
       ...draft,
@@ -167,15 +186,18 @@ export const mockAdminAdapter: AdminAdapter = {
       sentAt: isScheduled ? undefined : new Intl.DateTimeFormat("ko-KR", { dateStyle: "medium", timeStyle: "short" }).format(new Date()),
     };
     state.notifications = [record, ...state.notifications];
+    await persistState();
     return structuredClone(record);
   },
 
   async cancelNotification(id: string): Promise<NotificationRecord> {
     await wait(420);
+    await ensureStateHydrated();
     const current = state.notifications.find((item) => item.id === id);
     if (!current) throw new Error("알림 이력을 찾을 수 없습니다.");
     const record: NotificationRecord = { ...current, status: "취소" };
     state.notifications = state.notifications.map((item) => item.id === id ? record : item);
+    await persistState();
     return structuredClone(record);
   },
 
@@ -190,6 +212,7 @@ export const mockAdminAdapter: AdminAdapter = {
 
   async findSimilarStores(draft: StoreDraft, excludeId?: string): Promise<StoreRecord[]> {
     await wait(240);
+    await ensureStateHydrated();
     const name = draft.name.trim().toLocaleLowerCase();
     if (name.length < 2) return [];
     return structuredClone(state.stores.filter((store) =>
@@ -201,6 +224,7 @@ export const mockAdminAdapter: AdminAdapter = {
 
   async saveStore(draft: StoreDraft, id?: string): Promise<StoreRecord> {
     await wait(520);
+    await ensureStateHydrated();
     const record: StoreRecord = {
       ...draft,
       id: id ?? `store-${Date.now()}`,
@@ -210,11 +234,13 @@ export const mockAdminAdapter: AdminAdapter = {
     state.stores = id
       ? state.stores.map((item) => (item.id === id ? record : item))
       : [...state.stores, record];
+    await persistState();
     return structuredClone(record);
   },
 
   async closeStores(ids: string[]): Promise<StoreRecord[]> {
     await wait(520);
+    await ensureStateHydrated();
     const uniqueIds = [...new Set(ids)];
     if (uniqueIds.length === 0) return [];
     const targets = uniqueIds.map((id) => {
@@ -225,11 +251,13 @@ export const mockAdminAdapter: AdminAdapter = {
     const records = targets.map((store) => ({ ...store, status: "폐점" as const, updatedAt: today() }));
     const updated = new Map(records.map((record) => [record.id, record]));
     state.stores = state.stores.map((item) => updated.get(item.id) ?? item);
+    await persistState();
     return structuredClone(records);
   },
 
   async findSimilarBrands(name: string, excludeId?: string): Promise<BrandRecord[]> {
     await wait(220);
+    await ensureStateHydrated();
     const normalized = name.trim().toLocaleLowerCase();
     if (normalized.length < 2) return [];
     return structuredClone(state.brands.filter((brand) =>
@@ -239,6 +267,7 @@ export const mockAdminAdapter: AdminAdapter = {
 
   async saveBrand(draft: BrandDraft, id?: string): Promise<BrandRecord> {
     await wait(480);
+    await ensureStateHydrated();
     const record: BrandRecord = {
       ...draft,
       id: id ?? `brand-${Date.now()}`,
@@ -247,11 +276,13 @@ export const mockAdminAdapter: AdminAdapter = {
     state.brands = id
       ? state.brands.map((item) => (item.id === id ? record : item))
       : [...state.brands, record];
+    await persistState();
     return structuredClone(record);
   },
 
   async saveDictionary(draft: DictionaryDraft, id?: string): Promise<DictionaryRecord> {
     await wait(420);
+    await ensureStateHydrated();
     const record: DictionaryRecord = {
       canonicalTerm: draft.canonicalTerm.trim(),
       allowedTerms: [...new Set(draft.allowedTerms.map((term) => term.trim()).filter(Boolean))],
@@ -261,11 +292,13 @@ export const mockAdminAdapter: AdminAdapter = {
     state.dictionaries = id
       ? state.dictionaries.map((item) => (item.id === id ? record : item))
       : [record, ...state.dictionaries];
+    await persistState();
     return structuredClone(record);
   },
 
   async uploadPoses(input: PoseUploadInput[]): Promise<PoseRecord[]> {
     await wait(620);
+    await ensureStateHydrated();
     const createdAt = new Intl.DateTimeFormat("ko-KR", {
       year: "numeric",
       month: "2-digit",
@@ -282,6 +315,7 @@ export const mockAdminAdapter: AdminAdapter = {
       createdAt,
     })));
     state.poses = [...records, ...state.poses];
+    await persistState();
     return structuredClone(records);
   },
 
@@ -290,5 +324,5 @@ export const mockAdminAdapter: AdminAdapter = {
   },
 };
 
-// UI-shaped mock data only: no HTTP client, route, backend enum, or API field
-// is referenced here. Add a separate AdminAdapter implementation later.
+// Prototype records are stored per browser. Replace this adapter with a shared API when
+// multiple operators or devices need the same source of truth.
