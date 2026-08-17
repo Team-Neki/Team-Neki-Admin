@@ -53,6 +53,8 @@ const METRICS_CACHE_TTL_MS = 60_000;
 const metricsCache = new Map<string, { value: DashboardMetricsResponse; expiresAt: number }>();
 const metricsInFlight = new Map<string, Promise<DashboardMetricsResponse>>();
 const AMPLITUDE_REQUEST_CONCURRENCY = 1;
+const NEKI_PROD_API_KEY_ENV = "NEKI_PROD_AMPLITUDE_API_KEY";
+const NEKI_PROD_SECRET_KEY_ENV = "NEKI_PROD_AMPLITUDE_SECRET_KEY";
 const amplitudeRequestQueue: Array<() => Promise<void>> = [];
 let activeAmplitudeRequests = 0;
 const amplitudeResponseCache = new Map<string, { value: unknown; expiresAt: number }>();
@@ -236,8 +238,8 @@ const sumValues = (values: number[]) => values.reduce((sum, value) => sum + Numb
 
 export async function GET(request: Request) {
   const [apiKey, secretKey, region, projectStartDateValue] = await Promise.all([
-    getRuntimeValue("AMPLITUDE_API_KEY"),
-    getRuntimeValue("AMPLITUDE_SECRET_KEY"),
+    getRuntimeValue(NEKI_PROD_API_KEY_ENV),
+    getRuntimeValue(NEKI_PROD_SECRET_KEY_ENV),
     getRuntimeValue("AMPLITUDE_REGION"),
     getRuntimeValue("AMPLITUDE_PROJECT_START_DATE"),
   ]);

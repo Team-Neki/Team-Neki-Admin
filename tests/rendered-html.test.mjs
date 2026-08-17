@@ -114,6 +114,8 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(dashboardRoute, /\/api\/2\/users/);
   assert.match(dashboardRoute, /m: "active"/);
   assert.match(dashboardRoute, /m: "new"/);
+  assert.match(dashboardRoute, /NEKI_PROD_AMPLITUDE_API_KEY/);
+  assert.match(dashboardRoute, /NEKI_PROD_AMPLITUDE_SECRET_KEY/);
   assert.match(dashboardRoute, /AMPLITUDE_PROJECT_START_DATE/);
   assert.match(dashboardRoute, /g: "platform"/);
   assert.match(dashboardRoute, /rangeStartDate/);
@@ -126,7 +128,8 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(apiAdapter, /const normalizeDashboardAnchor/);
   assert.match(apiAdapter, /query\.rangeStartDate && query\.rangeEndDate/);
   assert.doesNotMatch(dashboardRoute, /fallback|mockAdminAdapter/);
-  assert.match(amplitudeRoute, /AMPLITUDE_API_KEY/);
+  assert.match(amplitudeRoute, /NEKI_PROD_AMPLITUDE_API_KEY/);
+  assert.match(amplitudeRoute, /NEKI_PROD_AMPLITUDE_SECRET_KEY/);
   assert.match(amplitudeRoute, /\/api\/2\/taxonomy\/event/);
   assert.match(amplitudeRoute, /\/api\/2\/events\/segmentation/);
   assert.match(amplitudeRoute, /\/api\/2\/users/);

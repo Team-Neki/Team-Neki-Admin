@@ -40,6 +40,8 @@ const METRICS_CACHE_TTL_MS = 60_000;
 const metricsCache = new Map<AnalyticsGranularity, { value: AnalyticsMetricsResponse; expiresAt: number }>();
 const metricsInFlight = new Map<AnalyticsGranularity, Promise<AnalyticsMetricsResponse>>();
 const AMPLITUDE_REQUEST_CONCURRENCY = 4;
+const NEKI_PROD_API_KEY_ENV = "NEKI_PROD_AMPLITUDE_API_KEY";
+const NEKI_PROD_SECRET_KEY_ENV = "NEKI_PROD_AMPLITUDE_SECRET_KEY";
 const amplitudeRequestQueue: Array<() => Promise<void>> = [];
 let activeAmplitudeRequests = 0;
 
@@ -126,8 +128,8 @@ const getGroupedMetricMap = (response: AmplitudeSegmentationResponse) => {
 
 export async function GET(request: Request) {
   const [apiKey, secretKey, region] = await Promise.all([
-    getRuntimeValue("AMPLITUDE_API_KEY"),
-    getRuntimeValue("AMPLITUDE_SECRET_KEY"),
+    getRuntimeValue(NEKI_PROD_API_KEY_ENV),
+    getRuntimeValue(NEKI_PROD_SECRET_KEY_ENV),
     getRuntimeValue("AMPLITUDE_REGION"),
   ]);
   if (!apiKey || !secretKey) {
