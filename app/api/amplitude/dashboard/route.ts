@@ -52,9 +52,11 @@ type UserMetricSeries = {
 const METRICS_CACHE_TTL_MS = 60_000;
 const metricsCache = new Map<string, { value: DashboardMetricsResponse; expiresAt: number }>();
 const metricsInFlight = new Map<string, Promise<DashboardMetricsResponse>>();
-const AMPLITUDE_REQUEST_CONCURRENCY = 4;
+const AMPLITUDE_REQUEST_CONCURRENCY = 1;
 const amplitudeRequestQueue: Array<() => Promise<void>> = [];
 let activeAmplitudeRequests = 0;
+const amplitudeResponseCache = new Map<string, { value: unknown; expiresAt: number }>();
+const amplitudeResponseInFlight = new Map<string, Promise<unknown>>();
 
 const getRuntimeValue = async (name: string) => {
   let runtime: Record<string, unknown> = {};
@@ -125,6 +127,27 @@ const amplitudeRequest = async <T>(baseUrl: string, auth: string, search: URLSea
   });
 };
 
+const cachedAmplitudeRequest = async <T>(baseUrl: string, auth: string, search: URLSearchParams): Promise<T> => {
+  const cacheKey = `${baseUrl}|${search.toString()}`;
+  const cached = amplitudeResponseCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.value as T;
+  if (cached) amplitudeResponseCache.delete(cacheKey);
+
+  const pending = amplitudeResponseInFlight.get(cacheKey);
+  if (pending) return pending as Promise<T>;
+
+  const request = amplitudeRequest<T>(baseUrl, auth, search)
+    .then((value) => {
+      amplitudeResponseCache.set(cacheKey, { value, expiresAt: Date.now() + METRICS_CACHE_TTL_MS });
+      return value;
+    })
+    .finally(() => {
+      if (amplitudeResponseInFlight.get(cacheKey) === request) amplitudeResponseInFlight.delete(cacheKey);
+    });
+  amplitudeResponseInFlight.set(cacheKey, request);
+  return request;
+};
+
 const normalizeAnchorDate = (value: string | null) => {
   const parsed = value ? new Date(`${value}T00:00:00Z`) : new Date();
   return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
@@ -160,6 +183,9 @@ const metricConfigs: UserMetricConfig[] = [
   { key: "wau", interval: 7, points: 12 },
   { key: "mau", interval: 30, points: 12 },
 ];
+
+const selectedMetricKey = (granularity: DashboardGranularity): UserMetricKey =>
+  granularity === "day" ? "dau" : granularity === "week" ? "wau" : "mau";
 
 const platformLabel = (value: unknown) => {
   if (typeof value === "string") return value.trim().toLowerCase();
@@ -229,9 +255,11 @@ export async function GET(request: Request) {
     const baseUrl = region.toLowerCase() === "eu" ? "https://analytics.eu.amplitude.com" : "https://amplitude.com";
     const auth = btoa(`${apiKey}:${secretKey}`);
     const responses: Array<{ config: UserMetricConfig; series: UserMetricSeries }> = [];
-    for (const config of metricConfigs) {
+    const activeMetricKey = selectedMetricKey(granularity);
+    const queryConfigs = metricConfigs.map((config) => config.key === activeMetricKey ? config : { ...config, points: 1 });
+    for (const config of queryConfigs) {
       const startDate = addDays(asOfDate, -(config.points - 1) * config.interval);
-      const response = await amplitudeRequest<AmplitudeUsersResponse>(baseUrl, auth, new URLSearchParams({
+      const response = await cachedAmplitudeRequest<AmplitudeUsersResponse>(baseUrl, auth, new URLSearchParams({
         start: formatAmplitudeDate(startDate),
         end: formatAmplitudeDate(asOfDate),
         m: "active",
@@ -241,7 +269,7 @@ export async function GET(request: Request) {
       responses.push({ config, series: parseUserMetricSeries(response) });
     }
     const projectStartDate = normalizeAnchorDate(projectStartDateValue || "2024-01-01");
-    const newUsersResponse = await amplitudeRequest<AmplitudeUsersResponse>(baseUrl, auth, new URLSearchParams({
+    const newUsersResponse = await cachedAmplitudeRequest<AmplitudeUsersResponse>(baseUrl, auth, new URLSearchParams({
       start: formatAmplitudeDate(projectStartDate > asOfDate ? asOfDate : projectStartDate),
       end: formatAmplitudeDate(asOfDate),
       m: "new",

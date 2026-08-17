@@ -41,7 +41,6 @@ import ReloadOutlined from "@ant-design/icons/ReloadOutlined";
 import CodeOutlined from "@ant-design/icons/CodeOutlined";
 import ArrowLeftOutlined from "@ant-design/icons/ArrowLeftOutlined";
 import dayjs, { type Dayjs } from "dayjs";
-import weekOfYear from "dayjs/plugin/weekOfYear";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { adminAdapter } from "./admin-adapter";
 import type {
@@ -74,7 +73,6 @@ import { mockQrParsingRules } from "./mock-analytics-events";
 const { Header, Content, Sider } = Layout;
 const { Text, Title, Paragraph } = Typography;
 
-dayjs.extend(weekOfYear);
 
 type ViewKey = "dashboard" | "notifications" | "stores" | "brands" | "dictionary" | "poses" | "analytics" | "qr-parsing";
 
@@ -175,10 +173,10 @@ function ErrorPanel({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-const DASHBOARD_GRANULARITY_OPTIONS = [
-  { label: "일별", value: "day" },
-  { label: "주별", value: "week" },
-  { label: "월별", value: "month" },
+const DASHBOARD_PERIOD_OPTIONS = [
+  { label: "오늘", value: "day" },
+  { label: "이번 주", value: "week" },
+  { label: "이번 달", value: "month" },
 ] satisfies Array<{ label: string; value: DashboardGranularity }>;
 
 const DASHBOARD_MIN_DATE = dayjs("2024-01-01");
@@ -313,7 +311,8 @@ function OverviewScreen({ mode }: { mode: LoadMode }) {
   const [dashboardError, setDashboardError] = useState(false);
   const [visibleSeries, setVisibleSeries] = useState<DashboardUserSeries[]>(["total", "android", "ios"]);
   const dashboardRequest = useRef(0);
-  const queryKey = `${granularity}:${anchorDate.format("YYYY-MM-DD")}`;
+  const requestAnchorDate = dashboardPeriodRange(anchorDate, granularity).start.format("YYYY-MM-DD");
+  const queryKey = `${granularity}:${requestAnchorDate}`;
 
   const loadDashboardMetrics = useCallback(async () => {
     const request = ++dashboardRequest.current;
@@ -322,7 +321,7 @@ function OverviewScreen({ mode }: { mode: LoadMode }) {
     try {
       const result = await adminAdapter.getDashboardMetrics({
         granularity,
-        anchorDate: anchorDate.format("YYYY-MM-DD"),
+        anchorDate: requestAnchorDate,
       }, mode);
       if (request === dashboardRequest.current) {
         setMetrics(result);
@@ -333,7 +332,7 @@ function OverviewScreen({ mode }: { mode: LoadMode }) {
     } finally {
       if (request === dashboardRequest.current) setDashboardLoading(false);
     }
-  }, [anchorDate, granularity, mode, queryKey]);
+  }, [granularity, mode, queryKey, requestAnchorDate]);
 
   useEffect(() => {
     const dashboardLoad = window.setTimeout(() => void loadDashboardMetrics(), 0);
@@ -352,8 +351,6 @@ function OverviewScreen({ mode }: { mode: LoadMode }) {
   const hasTrendData = Boolean(hasData && metrics?.trend.length);
   const hasPlatformTrendData = Boolean(hasData && metrics?.trend.some((point) => point.totalUsers !== null || point.androidUsers !== null || point.iosUsers !== null));
   const dashboardPending = !dashboardError && (dashboardLoading || !hasCurrentMetrics);
-  const pickerMode: "date" | "week" | "month" = granularity === "day" ? "date" : granularity;
-
   const movePeriod = (direction: -1 | 1) => {
     const unit = granularity === "day" ? "day" : granularity;
     setAnchorDate((current) => {
@@ -362,12 +359,6 @@ function OverviewScreen({ mode }: { mode: LoadMode }) {
       return next.isAfter(currentDate, "day") ? currentDate : next;
     });
   };
-
-  const quickPeriods = [
-    { label: "오늘", granularity: "day" as const },
-    { label: "이번 주", granularity: "week" as const },
-    { label: "이번 달", granularity: "month" as const },
-  ];
 
   const platformOptions = [
     { label: <span className="dashboard-series-label"><i className="series-total" />전체</span>, value: "total" as const },
@@ -385,23 +376,22 @@ function OverviewScreen({ mode }: { mode: LoadMode }) {
       <Card className="content-card dashboard-date-card" size="small">
         <div className="dashboard-date-toolbar">
           <Segmented<DashboardGranularity>
-            name="dashboard-granularity"
+            name="dashboard-period"
             value={granularity}
-            options={DASHBOARD_GRANULARITY_OPTIONS}
-            onChange={setGranularity}
-            aria-label="대시보드 조회 단위"
+            options={DASHBOARD_PERIOD_OPTIONS}
+            onChange={(value) => { setGranularity(value); setAnchorDate(currentDate); }}
+            aria-label="조회 기간"
           />
           <div className="dashboard-date-controls">
             <Button size="small" disabled={isEarliestPeriod} onClick={() => movePeriod(-1)}>이전</Button>
             <DatePicker
-              key={granularity}
               className="dashboard-date-picker"
-              picker={pickerMode}
+              picker="date"
               value={anchorDate}
               allowClear={false}
               inputReadOnly
               minDate={DASHBOARD_MIN_DATE}
-              format={granularity === "month" ? "YYYY년 M월" : granularity === "week" ? (date) => `${date.year()}년 ${date.week()}주` : "YYYY.MM.DD"}
+              format="YYYY.MM.DD"
               disabledDate={(date) => date.startOf("day").isBefore(DASHBOARD_MIN_DATE, "day") || date.startOf("day").isAfter(currentDate, "day")}
               onChange={(date) => {
                 if (!date) return;
@@ -411,22 +401,6 @@ function OverviewScreen({ mode }: { mode: LoadMode }) {
               aria-label="조회 기준 기간"
             />
             <Button size="small" disabled={isCurrentPeriod} onClick={() => movePeriod(1)}>다음</Button>
-          </div>
-          <div className="dashboard-quick-periods" aria-label="현재 기간으로 빠르게 이동">
-            {quickPeriods.map((item) => {
-              const selected = granularity === item.granularity && dashboardPeriodRange(anchorDate, item.granularity).start.isSame(dashboardPeriodRange(currentDate, item.granularity).start, "day");
-              return (
-                <Button
-                  key={item.granularity}
-                  size="small"
-                  type={selected ? "default" : "text"}
-                  className={selected ? "dashboard-quick-selected" : ""}
-                  onClick={() => { setGranularity(item.granularity); setAnchorDate(currentDate); }}
-                >
-                  {item.label}
-                </Button>
-              );
-            })}
           </div>
         </div>
         <div className="dashboard-period-summary" aria-live="polite">

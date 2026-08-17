@@ -12,10 +12,21 @@ const DASHBOARD_CLIENT_CACHE_TTL_MS = 60_000;
 const dashboardCache = new Map<string, { value: DashboardMetrics; expiresAt: number }>();
 const dashboardInFlight = new Map<string, Promise<DashboardMetrics>>();
 
+const normalizeDashboardAnchor = (query: DashboardMetricsQuery) => {
+  const parsed = new Date(`${query.anchorDate}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return query.anchorDate;
+  if (query.granularity === "month") {
+    parsed.setUTCDate(1);
+  } else if (query.granularity === "week") {
+    parsed.setUTCDate(parsed.getUTCDate() - parsed.getUTCDay());
+  }
+  return parsed.toISOString().slice(0, 10);
+};
+
 const getDashboardMetrics = async (query: DashboardMetricsQuery, mode: LoadMode = "success"): Promise<DashboardMetrics> => {
   if (mode !== "success") return mockAdminAdapter.getDashboardMetrics(query, mode);
 
-  const cacheKey = `${query.granularity}:${query.anchorDate}`;
+  const cacheKey = `${query.granularity}:${normalizeDashboardAnchor(query)}`;
   const now = Date.now();
   const cached = dashboardCache.get(cacheKey);
   if (cached && cached.expiresAt > now) return cached.value;
