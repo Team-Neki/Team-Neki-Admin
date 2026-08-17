@@ -5,7 +5,7 @@
 ## 현재 범위
 
 - 고정 사이드바와 프로필 영역
-- DAU·WAU·MAU, 일·주·월 기준 기간 선택, 전체·Android·iOS 누적 사용자 추이
+- DAU·WAU·MAU 실제 Amplitude 집계, 일·주·월 기준 기간 선택, 플랫폼별 활성 사용자 추이
 - 수동 알림 즉시·예약 발송, 예상 인원 확인, 발송 이력·상세·예약 취소
 - 부스 검색·필터, 등록·상세·수정, 선택 모드 기반 일괄 폐점 처리
 - 전체 브랜드의 Android QR·iOS QR·지도 표시 상태, 3행 체크박스 조합 필터, 브랜드 추가·수정
@@ -23,9 +23,9 @@
 - 복수 조건 필터는 `Checkbox.Group`, 한 축의 보기 전환은 `Segmented`, 기준 기간 선택은 `DatePicker`, 목록 일괄 작업은 `Table.rowSelection`을 사용합니다. 데이터 목록은 열 `responsive`와 `scroll` 설정으로 화면 폭에 대응합니다.
 - 공식 문서: [For Agents](https://ant.design/docs/react/for-agents/) · [Checkbox](https://ant.design/components/checkbox/) · [DatePicker](https://ant.design/components/date-picker/) · [Segmented](https://ant.design/components/segmented/) · [Table](https://ant.design/components/table/) · [Theme](https://ant.design/docs/react/customize-theme/)
 
-운영 CRUD와 포즈 업로드는 `app/admin/mock-admin-data.ts`의 시드 데이터와 메모리 기반 adapter를 사용합니다. 지표 화면의 새로고침은 서버 API route를 통해 Amplitude 데이터를 조회하며, API 키가 없으면 설정 안내 상태를 표시합니다. 포즈 업로드는 브라우저 메모리에만 저장되어 새로고침하면 초기화됩니다.
+운영 CRUD와 포즈 업로드는 `app/admin/mock-admin-data.ts`의 시드 데이터와 메모리 기반 adapter를 사용합니다. 대시보드와 지표 화면의 새로고침은 서버 API route를 통해 Amplitude 데이터를 조회하며, API 키가 없으면 설정 안내 상태를 표시합니다. DAU·WAU·MAU는 Amplitude 활성 사용자 집계, 총 사용자는 `AMPLITUDE_PROJECT_START_DATE`부터의 신규 사용자 누적을 사용합니다. 이 값은 Neki 가입자 원장과 다를 수 있습니다. 포즈 업로드는 브라우저 메모리에만 저장되어 새로고침하면 초기화됩니다.
 
-Amplitude 조회 키는 `.env.local` 또는 배포 환경의 `AMPLITUDE_API_KEY`, `AMPLITUDE_SECRET_KEY`로 설정합니다. EU 리전에 있는 프로젝트만 `AMPLITUDE_REGION=eu`로 지정합니다.
+Amplitude 조회 키는 `.env.local` 또는 배포 환경의 `AMPLITUDE_API_KEY`, `AMPLITUDE_SECRET_KEY`로 설정합니다. EU 리전에 있는 프로젝트만 `AMPLITUDE_REGION=eu`로 지정합니다. 총 사용자 누적 기준일은 `AMPLITUDE_PROJECT_START_DATE`로 조정합니다.
 
 렌더 검증용으로 URL에 `state=empty` 또는 `state=error`를 추가하면 목록의 빈 화면과 조회 오류 상태를 재현할 수 있습니다.
 
@@ -74,7 +74,8 @@ cp .env.local.example .env.local
 - `app/admin/AdminApp.tsx`: 공통 셸과 사용자 지표·수동 알림·부스·브랜드·포즈·지표·QR 파싱 화면
 - `app/admin/admin-adapter.ts`: mock/API 구현체를 선택하는 단일 조립 지점
 - `app/admin/api-admin-adapter.ts`: 지표 새로고침과 기존 목 adapter를 조합하는 구현체
-- `app/api/amplitude/metrics/route.ts`: 서버에서 Amplitude 조회 API를 호출하는 route
+- `app/api/amplitude/metrics/route.ts`: 서버에서 Amplitude 이벤트·활성 사용자 API를 호출하는 route
+- `app/api/amplitude/dashboard/route.ts`: 서버에서 DAU·WAU·MAU·신규 사용자 누적 API를 호출하는 route
 - `app/admin/mock-admin-data.ts`: 검색·필터·페이지네이션 검증용 프로토타입 시드 데이터
 - `app/admin/mock-admin-adapter.ts`: 메모리 기반 목 조회·변경 구현체
 - `app/admin/types.ts`: 화면 모델과 구현체 공통 `AdminAdapter` 계약

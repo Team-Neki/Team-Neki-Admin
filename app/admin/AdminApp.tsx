@@ -248,9 +248,9 @@ function DashboardActivityChart({ points, metric }: { points: DashboardTrendPoin
 }
 
 const dashboardSeriesValue = (point: DashboardTrendPoint, series: DashboardUserSeries) => {
-  if (series === "android") return point.androidUsers;
-  if (series === "ios") return point.iosUsers;
-  return point.totalUsers;
+  if (series === "android") return point.androidUsers ?? 0;
+  if (series === "ios") return point.iosUsers ?? 0;
+  return point.totalUsers ?? 0;
 };
 
 function DashboardCumulativeChart({
@@ -263,7 +263,7 @@ function DashboardCumulativeChart({
   const maxValue = Math.max(...points.flatMap((point) => visibleSeries.map((series) => dashboardSeriesValue(point, series))), 1);
   return (
     <div className="dashboard-chart-scroll">
-      <div className="dashboard-bar-chart dashboard-bar-chart-grouped" role="list" aria-label="플랫폼별 누적 사용자 추이">
+      <div className="dashboard-bar-chart dashboard-bar-chart-grouped" role="list" aria-label="플랫폼별 활성 사용자 추이">
         {points.map((point) => (
           <Tooltip
             key={point.date}
@@ -294,12 +294,12 @@ function DashboardCumulativeChart({
   );
 }
 
-function DashboardChartState({ loading, empty }: { loading: boolean; empty: boolean }) {
+function DashboardChartState({ loading, empty, emptyDescription = "선택한 기간에 사용자 데이터가 없습니다" }: { loading: boolean; empty: boolean; emptyDescription?: string }) {
   if (loading) {
     return <div className="dashboard-chart-state"><Spin /><Text type="secondary">사용자 지표를 불러오고 있어요</Text></div>;
   }
   if (empty) {
-    return <div className="dashboard-chart-state"><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="선택한 기간에 사용자 데이터가 없습니다" /></div>;
+    return <div className="dashboard-chart-state"><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={emptyDescription} /></div>;
   }
   return null;
 }
@@ -350,6 +350,7 @@ function OverviewScreen({ mode }: { mode: LoadMode }) {
   const hasCurrentMetrics = metricsQueryKey === queryKey;
   const hasData = Boolean(hasCurrentMetrics && metrics?.hasData);
   const hasTrendData = Boolean(hasData && metrics?.trend.length);
+  const hasPlatformTrendData = Boolean(hasData && metrics?.trend.some((point) => point.totalUsers !== null || point.androidUsers !== null || point.iosUsers !== null));
   const dashboardPending = !dashboardError && (dashboardLoading || !hasCurrentMetrics);
   const pickerMode: "date" | "week" | "month" = granularity === "day" ? "date" : granularity;
 
@@ -470,12 +471,12 @@ function OverviewScreen({ mode }: { mode: LoadMode }) {
             })}
             <Card size="small" className="dashboard-stat-card dashboard-total-card">
               <Statistic
-                title={<span className="dashboard-stat-title"><strong>총 사용자</strong><small>선택일 기준 누적</small></span>}
-                value={hasData ? metrics?.totalUsers ?? 0 : "—"}
+                title={<span className="dashboard-stat-title"><strong>총 사용자</strong><small>Amplitude 신규 사용자 누적</small></span>}
+                value={hasData ? metrics?.totalUsers ?? "—" : "—"}
                 loading={dashboardPending && !hasCurrentMetrics}
                 groupSeparator=","
               />
-              <Text type="secondary" className="dashboard-stat-period">{dashboardPending && !hasCurrentMetrics ? "불러오는 중" : hasData ? `${dayjs(metrics?.asOfDate).format("YYYY.MM.DD")}까지` : "데이터 없음"}</Text>
+              <Text type="secondary" className="dashboard-stat-period">{dashboardPending && !hasCurrentMetrics ? "불러오는 중" : hasData && metrics?.totalUsers !== null ? `${dayjs(metrics?.asOfDate).format("YYYY.MM.DD")}까지` : hasData ? "사용자 원장 API 필요" : "데이터 없음"}</Text>
             </Card>
           </section>
 
@@ -490,7 +491,7 @@ function OverviewScreen({ mode }: { mode: LoadMode }) {
 
             <Card className="content-card dashboard-chart-card">
               <div className="dashboard-chart-heading dashboard-platform-heading">
-                <div><Title level={2}>누적 사용자 추이</Title><Text type="secondary">전체 및 플랫폼별</Text></div>
+                <div><Title level={2}>플랫폼별 활성 사용자 추이</Title><Text type="secondary">전체 및 플랫폼별</Text></div>
                 <Checkbox.Group<DashboardUserSeries>
                   name="dashboard-platform-series"
                   className="dashboard-platform-filter"
@@ -500,13 +501,15 @@ function OverviewScreen({ mode }: { mode: LoadMode }) {
                   aria-label="누적 사용자 표시 항목"
                 />
               </div>
-              {metrics && hasCurrentMetrics && hasTrendData ? <DashboardCumulativeChart points={metrics.trend} visibleSeries={visibleSeries} /> : <DashboardChartState loading={dashboardPending} empty={!hasTrendData} />}
+              {metrics && hasCurrentMetrics && hasPlatformTrendData ? <DashboardCumulativeChart points={metrics.trend} visibleSeries={visibleSeries} /> : <DashboardChartState loading={dashboardPending} empty={!hasPlatformTrendData} emptyDescription="플랫폼별 누적 사용자 데이터가 없습니다" />}
               {metrics && hasCurrentMetrics && hasData && (
-                <div className="dashboard-platform-totals" aria-label="플랫폼별 누적 사용자">
-                  <span><i className="series-total" /><small>전체</small><strong>{metrics.totalUsers.toLocaleString("ko-KR")}</strong></span>
-                  <span><i className="series-android" /><small>Android</small><strong>{metrics.androidUsers.toLocaleString("ko-KR")}</strong></span>
-                  <span><i className="series-ios" /><small>iOS</small><strong>{metrics.iosUsers.toLocaleString("ko-KR")}</strong></span>
-                </div>
+                metrics.totalUsers !== null && metrics.androidUsers !== null && metrics.iosUsers !== null ? (
+                  <div className="dashboard-platform-totals" aria-label="플랫폼별 누적 사용자">
+                    <span><i className="series-total" /><small>전체 누적</small><strong>{metrics.totalUsers.toLocaleString("ko-KR")}</strong></span>
+                    <span><i className="series-android" /><small>Android 누적</small><strong>{metrics.androidUsers.toLocaleString("ko-KR")}</strong></span>
+                    <span><i className="series-ios" /><small>iOS 누적</small><strong>{metrics.iosUsers.toLocaleString("ko-KR")}</strong></span>
+                  </div>
+                ) : <Text type="secondary" className="dashboard-platform-total-note">총 사용자 원장 API 필요</Text>
               )}
             </Card>
           </section>
@@ -1296,9 +1299,10 @@ const ANALYTICS_GRANULARITY_OPTIONS: Array<{ label: string; value: AnalyticsGran
   { label: "주별", value: "week" },
   { label: "월별", value: "month" },
 ];
+const ANALYTICS_REFRESH_COOLDOWN_MS = 30_000;
 const analyticsGranularityLabel = (value: AnalyticsGranularity) => ANALYTICS_GRANULARITY_OPTIONS.find((option) => option.value === value)?.label ?? "일별";
 
-function AnalyticsScreen({ events, metrics, granularity, refreshing, refreshError, onRefresh, onGranularityChange }: { events: AnalyticsEventRecord[]; metrics?: AnalyticsRefreshResult; granularity: AnalyticsGranularity; refreshing: boolean; refreshError?: string; onRefresh: () => void; onGranularityChange: (value: AnalyticsGranularity) => void }) {
+function AnalyticsScreen({ events, metrics, granularity, refreshing, cooldownRemaining, refreshError, onRefresh, onGranularityChange }: { events: AnalyticsEventRecord[]; metrics?: AnalyticsRefreshResult; granularity: AnalyticsGranularity; refreshing: boolean; cooldownRemaining: number; refreshError?: string; onRefresh: () => void; onGranularityChange: (value: AnalyticsGranularity) => void }) {
   const [area, setArea] = useState<(typeof ANALYTICS_AREAS)[number]>("전체");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<AnalyticsEventRecord>();
@@ -1323,14 +1327,14 @@ function AnalyticsScreen({ events, metrics, granularity, refreshing, refreshErro
 
   return (
     <>
-      <PageHeader view="analytics" action={<Button icon={<ReloadOutlined />} loading={refreshing} onClick={onRefresh}>새로고침</Button>} />
+      <PageHeader view="analytics" action={<Button icon={<ReloadOutlined />} disabled={refreshing || cooldownRemaining > 0} loading={refreshing} onClick={onRefresh}>{cooldownRemaining > 0 ? `${cooldownRemaining}초 후 새로고침` : "새로고침"}</Button>} />
       <Card className="content-card analytics-intro-card">
         <div className="analytics-intro-copy"><Tag color="blue">Amplitude</Tag><Title level={3}>Amplitude 지표</Title></div>
         <div className="analytics-summary-grid"><div><strong>{events.length}개</strong><span>정의된 이벤트</span></div><div><strong>{new Set(events.map((event) => event.area)).size}개</strong><span>기능 영역</span></div><div><strong>{formatAnalyticsActiveUsers(metrics)}</strong><span>{metrics ? `${analyticsGranularityLabel(metrics.granularity)} 활성 사용자` : "활성 사용자"}</span></div><div><strong>{metrics ? formatSchedule(metrics.fetchedAt) : "—"}</strong><span>최근 수집</span></div></div>
       </Card>
       {refreshError && <Alert className="analytics-refresh-alert" type="warning" showIcon title={refreshError} />}
       <Card className="content-card table-card analytics-table-card">
-        <div className="toolbar analytics-toolbar"><Segmented options={ANALYTICS_GRANULARITY_OPTIONS} value={granularity} onChange={(value) => onGranularityChange(value as AnalyticsGranularity)} aria-label="지표 조회 단위" /><Select value={area} onChange={setArea} aria-label="이벤트 기능 영역 필터" options={ANALYTICS_AREAS.map((item) => ({ label: item, value: item }))} /><Input.Search value={query} onChange={(event) => setQuery(event.target.value)} allowClear placeholder="이벤트명·페이지·트리거 검색" aria-label="이벤트 검색" /></div>
+        <div className="toolbar analytics-toolbar"><Segmented options={ANALYTICS_GRANULARITY_OPTIONS} value={granularity} disabled={refreshing || cooldownRemaining > 0} onChange={(value) => onGranularityChange(value as AnalyticsGranularity)} aria-label="지표 조회 단위" /><Select value={area} onChange={setArea} aria-label="이벤트 기능 영역 필터" options={ANALYTICS_AREAS.map((item) => ({ label: item, value: item }))} /><Input.Search value={query} onChange={(event) => setQuery(event.target.value)} allowClear placeholder="이벤트명·페이지·트리거 검색" aria-label="이벤트 검색" /></div>
         <div className="result-summary"><Text strong>{filtered.length}개 이벤트</Text></div>
         {filtered.length ? <Table rowKey="id" columns={columns} dataSource={filtered} scroll={{ x: 1040 }} pagination={{ pageSize: 10, showSizeChanger: false, showTotal: (total) => `총 ${total}개` }} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="조건에 맞는 이벤트가 없습니다." />}
       </Card>
@@ -1857,6 +1861,10 @@ function AdminWorkspace() {
   const [analyticsGranularity, setAnalyticsGranularity] = useState<AnalyticsGranularity>("day");
   const [analyticsRefreshing, setAnalyticsRefreshing] = useState(false);
   const [analyticsRefreshError, setAnalyticsRefreshError] = useState<string>();
+  const [analyticsCooldownUntil, setAnalyticsCooldownUntil] = useState(0);
+  const [analyticsCooldownRemaining, setAnalyticsCooldownRemaining] = useState(0);
+  const analyticsRefreshLock = useRef(false);
+  const analyticsCooldownRef = useRef(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1890,6 +1898,17 @@ function AdminWorkspace() {
     };
   }, [load]);
 
+  useEffect(() => {
+    const updateCooldown = () => {
+      const remaining = Math.max(0, analyticsCooldownUntil - Date.now());
+      setAnalyticsCooldownRemaining(Math.ceil(remaining / 1000));
+    };
+    updateCooldown();
+    if (!analyticsCooldownUntil) return;
+    const timer = window.setInterval(updateCooldown, 500);
+    return () => window.clearInterval(timer);
+  }, [analyticsCooldownUntil]);
+
   const navigate = (next: ViewKey) => {
     setView(next);
     const url = new URL(window.location.href);
@@ -1898,6 +1917,9 @@ function AdminWorkspace() {
   };
 
   const refreshAnalytics = async (requestedGranularity = analyticsGranularity) => {
+    const now = Date.now();
+    if (analyticsRefreshLock.current || analyticsCooldownRef.current > now) return;
+    analyticsRefreshLock.current = true;
     setAnalyticsGranularity(requestedGranularity);
     setAnalyticsRefreshing(true);
     setAnalyticsRefreshError(undefined);
@@ -1907,6 +1929,10 @@ function AdminWorkspace() {
       setAnalyticsRefreshError(refreshError instanceof Error ? refreshError.message : "Amplitude 지표를 불러오지 못했습니다.");
     } finally {
       setAnalyticsRefreshing(false);
+      const cooldownUntil = Date.now() + ANALYTICS_REFRESH_COOLDOWN_MS;
+      analyticsCooldownRef.current = cooldownUntil;
+      setAnalyticsCooldownUntil(cooldownUntil);
+      analyticsRefreshLock.current = false;
     }
   };
 
@@ -1952,7 +1978,7 @@ function AdminWorkspace() {
               {view === "brands" && <BrandScreen brands={data.brands} dictionaries={data.dictionaries} setBrands={(update) => setData((current) => ({ ...current, brands: typeof update === "function" ? update(current.brands) : update }))} onOpenQrParsing={() => navigate("qr-parsing")} />}
               {view === "dictionary" && <DictionaryScreen dictionaries={data.dictionaries} setDictionaries={(update) => setData((current) => ({ ...current, dictionaries: typeof update === "function" ? update(current.dictionaries) : update }))} />}
               {view === "poses" && <PoseScreen poses={data.poses} setPoses={(update) => setData((current) => ({ ...current, poses: typeof update === "function" ? update(current.poses) : update }))} />}
-              {view === "analytics" && <AnalyticsScreen events={data.analyticsEvents} metrics={analyticsMetrics} granularity={analyticsGranularity} refreshing={analyticsRefreshing} refreshError={analyticsRefreshError} onRefresh={() => void refreshAnalytics()} onGranularityChange={(next) => void refreshAnalytics(next)} />}
+              {view === "analytics" && <AnalyticsScreen events={data.analyticsEvents} metrics={analyticsMetrics} granularity={analyticsGranularity} refreshing={analyticsRefreshing} cooldownRemaining={analyticsCooldownRemaining} refreshError={analyticsRefreshError} onRefresh={() => void refreshAnalytics()} onGranularityChange={(next) => void refreshAnalytics(next)} />}
               {view === "qr-parsing" && <QrParsingScreen onBack={() => navigate("brands")} />}
             </>
           )}

@@ -44,12 +44,13 @@ test("server-renders the Neki Admin operations shell and loading state", async (
 });
 
 test("keeps the Neki design foundation and API adapter boundary explicit", async () => {
-  const [page, adminApp, adapterEntry, apiAdapter, amplitudeRoute, mockAdapter, mockData, types, css, layout, packageJson, mockAnalytics] = await Promise.all([
+  const [page, adminApp, adapterEntry, apiAdapter, amplitudeRoute, dashboardRoute, mockAdapter, mockData, types, css, layout, packageJson, mockAnalytics] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/AdminApp.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/admin-adapter.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/api-admin-adapter.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/amplitude/metrics/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/amplitude/dashboard/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/mock-admin-adapter.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/mock-admin-data.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/types.ts", import.meta.url), "utf8"),
@@ -100,7 +101,8 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(adminApp, /<Title level=\{3\}>Amplitude 지표<\/Title>/);
   assert.doesNotMatch(adminApp, /GA4/);
   assert.doesNotMatch(adminApp, /이벤트명을 누르면 상세 정보를 볼 수 있습니다/);
-  assert.match(adminApp, /<Button icon=\{<ReloadOutlined \/>\} loading=\{refreshing\} onClick=\{onRefresh\}>새로고침<\/Button>/);
+  assert.match(adminApp, /ANALYTICS_REFRESH_COOLDOWN_MS = 30_000/);
+  assert.match(adminApp, /cooldownRemaining > 0/);
   assert.match(adminApp, /선택 기간 발생/);
   assert.match(adminApp, /활성 사용자/);
   assert.match(adminApp, /일별/);
@@ -108,11 +110,25 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(adminApp, /월별/);
   assert.match(adapterEntry, /apiAdminAdapter/);
   assert.match(apiAdapter, /fetch\(`\/api\/amplitude\/metrics\?granularity=\$\{granularity\}`/);
+  assert.match(apiAdapter, /fetch\(`\/api\/amplitude\/dashboard\?/);
+  assert.match(dashboardRoute, /\/api\/2\/users/);
+  assert.match(dashboardRoute, /m: "active"/);
+  assert.match(dashboardRoute, /m: "new"/);
+  assert.match(dashboardRoute, /AMPLITUDE_PROJECT_START_DATE/);
+  assert.match(dashboardRoute, /g: "platform"/);
+  assert.match(dashboardRoute, /METRICS_CACHE_TTL_MS = 60_000/);
+  assert.match(dashboardRoute, /AMPLITUDE_REQUEST_CONCURRENCY = 4/);
+  assert.doesNotMatch(dashboardRoute, /fallback|mockAdminAdapter/);
   assert.match(amplitudeRoute, /AMPLITUDE_API_KEY/);
   assert.match(amplitudeRoute, /\/api\/2\/taxonomy\/event/);
   assert.match(amplitudeRoute, /\/api\/2\/events\/segmentation/);
   assert.match(amplitudeRoute, /\/api\/2\/users/);
   assert.match(amplitudeRoute, /granularity/);
+  assert.match(amplitudeRoute, /METRICS_CACHE_TTL_MS = 60_000/);
+  assert.match(amplitudeRoute, /AMPLITUDE_REQUEST_CONCURRENCY = 4/);
+  assert.match(amplitudeRoute, /event_type: "_all"/);
+  assert.match(amplitudeRoute, /event_type_value/);
+  assert.doesNotMatch(amplitudeRoute, /fetchPairedEventMetrics|amplitudeQueryEventName|withConcurrency|aggregateEventMetricsSupported/);
   assert.match(adminApp, /function QrParsingScreen/);
   assert.match(adminApp, /Android 파싱 로직/);
   assert.match(adminApp, /WebView 진입 즉시/);
@@ -289,7 +305,7 @@ test("keeps dashboard metrics date-driven, platform-aware, and isolated behind t
   for (const metric of ["DAU", "WAU", "MAU"]) {
     assert.match(dashboardCode, new RegExp(`label: "${metric}"`));
   }
-  assert.match(overviewScreen, /<strong>총 사용자<\/strong><small>선택일 기준 누적<\/small>/);
+  assert.match(overviewScreen, /<strong>총 사용자<\/strong><small>Amplitude 신규 사용자 누적<\/small>/);
   assert.match(overviewScreen, /aria-label="활성 사용자와 총 사용자"/);
 
   assert.match(dashboardCode, /\{ label: "일별", value: "day" \}[\s\S]*\{ label: "주별", value: "week" \}[\s\S]*\{ label: "월별", value: "month" \}/);
@@ -308,7 +324,7 @@ test("keeps dashboard metrics date-driven, platform-aware, and isolated behind t
   assert.match(overviewScreen, /<Checkbox\.Group<DashboardUserSeries>[\s\S]*name="dashboard-platform-series"[\s\S]*value=\{visibleSeries\}[\s\S]*options=\{platformOptions\}[\s\S]*onChange=\{\(next\) => next\.length > 0 && setVisibleSeries\(next\)\}[\s\S]*aria-label="누적 사용자 표시 항목"/);
   assert.match(dashboardCode, /value: "total" as const[\s\S]*value: "android" as const[\s\S]*value: "ios" as const/);
   assert.match(dashboardCode, /visibleSeries\.length === 1 && visibleSeries\.includes\(option\.value\)/);
-  assert.match(dashboardCode, /aria-label="플랫폼별 누적 사용자 추이"/);
+  assert.match(dashboardCode, /aria-label="플랫폼별 활성 사용자 추이"/);
   assert.match(dashboardCode, /visibleSeries\.map\(\(series\) => `\$\{DASHBOARD_SERIES_LABELS\[series\]\}/);
   assert.match(dashboardCode, /data-value=\{visibleSeries\.map/);
   assert.match(overviewScreen, /aria-label="플랫폼별 누적 사용자"[\s\S]*metrics\.totalUsers[\s\S]*metrics\.androidUsers[\s\S]*metrics\.iosUsers/);
@@ -335,7 +351,7 @@ test("keeps dashboard metrics date-driven, platform-aware, and isolated behind t
 
   assert.match(types, /export type DashboardGranularity = "day" \| "week" \| "month"/);
   assert.match(types, /export type DashboardMetricsQuery = \{[\s\S]*granularity: DashboardGranularity;[\s\S]*anchorDate: string;/);
-  assert.match(types, /export type DashboardTrendPoint = \{[\s\S]*activeUsers: number;[\s\S]*totalUsers: number;[\s\S]*androidUsers: number;[\s\S]*iosUsers: number;/);
+  assert.match(types, /export type DashboardTrendPoint = \{[\s\S]*activeUsers: number;[\s\S]*totalUsers: number \| null;[\s\S]*androidUsers: number \| null;[\s\S]*iosUsers: number \| null;/);
   assert.match(types, /export type DashboardMetrics = \{[\s\S]*hasData: boolean;[\s\S]*dau: DashboardMetricValue;[\s\S]*wau: DashboardMetricValue;[\s\S]*mau: DashboardMetricValue;[\s\S]*trend: DashboardTrendPoint\[\];/);
   assert.match(types, /getDashboardMetrics\(query: DashboardMetricsQuery, mode\?: LoadMode\): Promise<DashboardMetrics>/);
   assert.match(mockAdapter, /async getDashboardMetrics\(query: DashboardMetricsQuery, mode: LoadMode = "success"\): Promise<DashboardMetrics>/);

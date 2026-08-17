@@ -21,9 +21,9 @@ export type DashboardTrendPoint = {
   date: string;
   label: string;
   activeUsers: number;
-  totalUsers: number;
-  androidUsers: number;
-  iosUsers: number;
+  totalUsers: number | null;
+  androidUsers: number | null;
+  iosUsers: number | null;
 };
 
 export type DashboardMetrics = {
@@ -35,9 +35,9 @@ export type DashboardMetrics = {
     wau: DashboardMetricValue;
     mau: DashboardMetricValue;
   };
-  totalUsers: number;
-  androidUsers: number;
-  iosUsers: number;
+  totalUsers: number | null;
+  androidUsers: number | null;
+  iosUsers: number | null;
   trend: DashboardTrendPoint[];
 };
 
