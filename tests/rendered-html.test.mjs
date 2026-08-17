@@ -44,13 +44,14 @@ test("server-renders the Neki Admin operations shell and loading state", async (
 });
 
 test("keeps the Neki design foundation and API adapter boundary explicit", async () => {
-  const [page, adminApp, adapterEntry, apiAdapter, amplitudeRoute, dashboardRoute, mockAdapter, mockData, types, css, layout, packageJson, mockAnalytics] = await Promise.all([
+  const [page, adminApp, adapterEntry, apiAdapter, amplitudeRoute, dashboardRoute, amplitudeClient, mockAdapter, mockData, types, css, layout, packageJson, mockAnalytics] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/AdminApp.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/admin-adapter.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/api-admin-adapter.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/amplitude/metrics/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/amplitude/dashboard/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/amplitude/amplitude-client.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/mock-admin-adapter.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/mock-admin-data.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/types.ts", import.meta.url), "utf8"),
@@ -114,29 +115,28 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(dashboardRoute, /\/api\/2\/users/);
   assert.match(dashboardRoute, /m: "active"/);
   assert.match(dashboardRoute, /m: "new"/);
-  assert.match(dashboardRoute, /NEKI_PROD_AMPLITUDE_API_KEY/);
-  assert.match(dashboardRoute, /NEKI_PROD_AMPLITUDE_SECRET_KEY/);
-  assert.match(dashboardRoute, /AMPLITUDE_PROJECT_START_DATE/);
+  assert.match(dashboardRoute, /from "\.\.\/amplitude-client"/);
   assert.match(dashboardRoute, /g: "platform"/);
   assert.match(dashboardRoute, /rangeStartDate/);
   assert.match(dashboardRoute, /rangeEndDate/);
   assert.match(dashboardRoute, /METRICS_CACHE_TTL_MS = 60_000/);
-  assert.match(dashboardRoute, /AMPLITUDE_REQUEST_CONCURRENCY = 1/);
-  assert.match(dashboardRoute, /const amplitudeResponseCache/);
-  assert.match(dashboardRoute, /const cachedAmplitudeRequest/);
+  assert.match(amplitudeClient, /NEKI_PROD_AMPLITUDE_API_KEY/);
+  assert.match(amplitudeClient, /NEKI_PROD_AMPLITUDE_SECRET_KEY/);
+  assert.match(amplitudeClient, /RESPONSE_CACHE_MAX_ENTRIES = 64/);
+  assert.match(amplitudeClient, /REQUEST_TIMEOUT_MS = 20_000/);
+  assert.match(amplitudeClient, /const responseInFlight/);
+  assert.match(amplitudeClient, /cachedAmplitudeRequest/);
   assert.match(dashboardRoute, /const isExplicitRange = granularity === "range"/);
   assert.match(dashboardRoute, /const queryConfigs = metricConfigs\.map\(\(config\) => \{[\s\S]*Math\.ceil\(rangeDays \/ config\.interval\)[\s\S]*config\.key !== activeMetricKey[\s\S]*points: 1/);
   assert.match(apiAdapter, /const normalizeDashboardAnchor/);
   assert.match(apiAdapter, /query\.rangeStartDate && query\.rangeEndDate/);
   assert.doesNotMatch(dashboardRoute, /fallback|mockAdminAdapter/);
-  assert.match(amplitudeRoute, /NEKI_PROD_AMPLITUDE_API_KEY/);
-  assert.match(amplitudeRoute, /NEKI_PROD_AMPLITUDE_SECRET_KEY/);
+  assert.match(amplitudeRoute, /from "\.\.\/amplitude-client"/);
   assert.match(amplitudeRoute, /\/api\/2\/taxonomy\/event/);
   assert.match(amplitudeRoute, /\/api\/2\/events\/segmentation/);
   assert.match(amplitudeRoute, /\/api\/2\/users/);
   assert.match(amplitudeRoute, /granularity/);
   assert.match(amplitudeRoute, /METRICS_CACHE_TTL_MS = 60_000/);
-  assert.match(amplitudeRoute, /AMPLITUDE_REQUEST_CONCURRENCY = 4/);
   assert.match(amplitudeRoute, /event_type: "_all"/);
   assert.match(amplitudeRoute, /event_type_value/);
   assert.doesNotMatch(amplitudeRoute, /fetchPairedEventMetrics|amplitudeQueryEventName|withConcurrency|aggregateEventMetricsSupported/);

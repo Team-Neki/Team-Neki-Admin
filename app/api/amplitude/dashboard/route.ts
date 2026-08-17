@@ -1,3 +1,10 @@
+import {
+  cachedAmplitudeRequest,
+  getAmplitudeAuth,
+  getAmplitudeBaseUrl,
+  getAmplitudeRuntime,
+} from "../amplitude-client";
+
 type AmplitudeUsersResponse = {
   data?: {
     series?: number[][];
@@ -51,28 +58,9 @@ type UserMetricSeries = {
 };
 
 const METRICS_CACHE_TTL_MS = 60_000;
+const METRICS_CACHE_MAX_ENTRIES = 32;
 const metricsCache = new Map<string, { value: DashboardMetricsResponse; expiresAt: number }>();
 const metricsInFlight = new Map<string, Promise<DashboardMetricsResponse>>();
-const AMPLITUDE_REQUEST_CONCURRENCY = 1;
-const NEKI_PROD_API_KEY_ENV = "NEKI_PROD_AMPLITUDE_API_KEY";
-const NEKI_PROD_SECRET_KEY_ENV = "NEKI_PROD_AMPLITUDE_SECRET_KEY";
-const amplitudeRequestQueue: Array<() => Promise<void>> = [];
-let activeAmplitudeRequests = 0;
-const amplitudeResponseCache = new Map<string, { value: unknown; expiresAt: number }>();
-const amplitudeResponseInFlight = new Map<string, Promise<unknown>>();
-
-const getRuntimeValue = async (name: string) => {
-  let runtime: Record<string, unknown> = {};
-  try {
-    const workerModule = await import("cloudflare:workers");
-    runtime = workerModule.env as unknown as Record<string, unknown>;
-  } catch {
-    // Node-based local rendering does not provide Cloudflare's runtime module.
-  }
-  const value = runtime[name] ?? process.env[name];
-  return typeof value === "string" ? value.trim() : "";
-};
-
 const formatDate = (date: Date) => date.toISOString().slice(0, 10);
 const formatAmplitudeDate = (date: Date) => formatDate(date).replaceAll("-", "");
 const addDays = (date: Date, days: number) => {
@@ -89,66 +77,13 @@ const json = (body: Record<string, unknown>, status = 200, cacheControl = "no-st
   },
 });
 
-const drainAmplitudeRequestQueue = () => {
-  while (activeAmplitudeRequests < AMPLITUDE_REQUEST_CONCURRENCY && amplitudeRequestQueue.length > 0) {
-    const next = amplitudeRequestQueue.shift();
-    if (next) void next();
+const setMetricsCache = (key: string, value: DashboardMetricsResponse) => {
+  while (metricsCache.size >= METRICS_CACHE_MAX_ENTRIES) {
+    const oldest = metricsCache.keys().next().value;
+    if (typeof oldest !== "string") break;
+    metricsCache.delete(oldest);
   }
-};
-
-const withAmplitudeRequestSlot = <T>(task: () => Promise<T>) => new Promise<T>((resolve, reject) => {
-  amplitudeRequestQueue.push(async () => {
-    activeAmplitudeRequests += 1;
-    try {
-      resolve(await task());
-    } catch (error) {
-      reject(error);
-    } finally {
-      activeAmplitudeRequests -= 1;
-      drainAmplitudeRequestQueue();
-    }
-  });
-  drainAmplitudeRequestQueue();
-});
-
-const amplitudeRequest = async <T>(baseUrl: string, auth: string, search: URLSearchParams): Promise<T> => {
-  const url = new URL("/api/2/users", baseUrl);
-  url.search = search.toString();
-  return withAmplitudeRequestSlot(async () => {
-    const response = await fetch(url, {
-      headers: {
-        Accept: "application/json",
-        Authorization: `Basic ${auth}`,
-      },
-    });
-    if (!response.ok) {
-      const retryAfter = response.headers.get("retry-after");
-      const suffix = retryAfter ? `; ${retryAfter}초 후 재시도` : "";
-      throw new Error(`Amplitude API 응답 오류 (${response.status})${suffix}`);
-    }
-    return await response.json() as T;
-  });
-};
-
-const cachedAmplitudeRequest = async <T>(baseUrl: string, auth: string, search: URLSearchParams): Promise<T> => {
-  const cacheKey = `${baseUrl}|${search.toString()}`;
-  const cached = amplitudeResponseCache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) return cached.value as T;
-  if (cached) amplitudeResponseCache.delete(cacheKey);
-
-  const pending = amplitudeResponseInFlight.get(cacheKey);
-  if (pending) return pending as Promise<T>;
-
-  const request = amplitudeRequest<T>(baseUrl, auth, search)
-    .then((value) => {
-      amplitudeResponseCache.set(cacheKey, { value, expiresAt: Date.now() + METRICS_CACHE_TTL_MS });
-      return value;
-    })
-    .finally(() => {
-      if (amplitudeResponseInFlight.get(cacheKey) === request) amplitudeResponseInFlight.delete(cacheKey);
-    });
-  amplitudeResponseInFlight.set(cacheKey, request);
-  return request;
+  metricsCache.set(key, { value, expiresAt: Date.now() + METRICS_CACHE_TTL_MS });
 };
 
 const normalizeAnchorDate = (value: string | null) => {
@@ -238,12 +173,7 @@ const metricValue = (series: UserMetricSeries, defaultDate: string, interval: nu
 const sumValues = (values: number[]) => values.reduce((sum, value) => sum + Number(value || 0), 0);
 
 export async function GET(request: Request) {
-  const [apiKey, secretKey, region, projectStartDateValue] = await Promise.all([
-    getRuntimeValue(NEKI_PROD_API_KEY_ENV),
-    getRuntimeValue(NEKI_PROD_SECRET_KEY_ENV),
-    getRuntimeValue("AMPLITUDE_REGION"),
-    getRuntimeValue("AMPLITUDE_PROJECT_START_DATE"),
-  ]);
+  const { apiKey, secretKey, region, projectStartDate: projectStartDateValue } = await getAmplitudeRuntime();
   if (!apiKey || !secretKey) {
     return json({ code: "amplitude_not_configured", message: "Amplitude API 키를 설정한 뒤 다시 시도해 주세요." }, 503);
   }
@@ -260,8 +190,8 @@ export async function GET(request: Request) {
   if (cached) metricsCache.delete(cacheKey);
 
   const loadMetrics = async (): Promise<DashboardMetricsResponse> => {
-    const baseUrl = region.toLowerCase() === "eu" ? "https://analytics.eu.amplitude.com" : "https://amplitude.com";
-    const auth = btoa(`${apiKey}:${secretKey}`);
+    const baseUrl = getAmplitudeBaseUrl(region);
+    const auth = getAmplitudeAuth(apiKey, secretKey);
     const responses: Array<{ config: UserMetricConfig; series: UserMetricSeries }> = [];
     const activeMetricKey = selectedMetricKey(granularity);
     const rangeDays = Math.max(1, Math.floor((asOfDate.getTime() - selectedPeriod.start.getTime()) / 86_400_000) + 1);
@@ -275,7 +205,7 @@ export async function GET(request: Request) {
     });
     for (const config of queryConfigs) {
       const startDate = addDays(asOfDate, -(config.points - 1) * config.interval);
-      const response = await cachedAmplitudeRequest<AmplitudeUsersResponse>(baseUrl, auth, new URLSearchParams({
+      const response = await cachedAmplitudeRequest<AmplitudeUsersResponse>(baseUrl, auth, "/api/2/users", new URLSearchParams({
         start: formatAmplitudeDate(startDate),
         end: formatAmplitudeDate(asOfDate),
         m: "active",
@@ -285,7 +215,7 @@ export async function GET(request: Request) {
       responses.push({ config, series: parseUserMetricSeries(response) });
     }
     const projectStartDate = normalizeAnchorDate(projectStartDateValue || "2024-01-01");
-    const newUsersResponse = await cachedAmplitudeRequest<AmplitudeUsersResponse>(baseUrl, auth, new URLSearchParams({
+    const newUsersResponse = await cachedAmplitudeRequest<AmplitudeUsersResponse>(baseUrl, auth, "/api/2/users", new URLSearchParams({
       start: formatAmplitudeDate(projectStartDate > asOfDate ? asOfDate : projectStartDate),
       end: formatAmplitudeDate(asOfDate),
       m: "new",
@@ -333,7 +263,7 @@ export async function GET(request: Request) {
 
   try {
     const payload = await requestPromise;
-    metricsCache.set(cacheKey, { value: payload, expiresAt: Date.now() + METRICS_CACHE_TTL_MS });
+    setMetricsCache(cacheKey, payload);
     return json(payload, 200, "private, max-age=60");
   } catch (error) {
     const message = error instanceof Error && error.message.startsWith("Amplitude API")

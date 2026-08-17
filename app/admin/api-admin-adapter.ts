@@ -9,6 +9,7 @@ const ANALYTICS_CLIENT_CACHE_TTL_MS = 60_000;
 const analyticsCache = new Map<AnalyticsGranularity, { value: AnalyticsRefreshResult; expiresAt: number }>();
 const analyticsInFlight = new Map<AnalyticsGranularity, Promise<AnalyticsRefreshResult>>();
 const DASHBOARD_CLIENT_CACHE_TTL_MS = 60_000;
+const DASHBOARD_CLIENT_CACHE_MAX_ENTRIES = 32;
 const dashboardCache = new Map<string, { value: DashboardMetrics; expiresAt: number }>();
 const dashboardInFlight = new Map<string, Promise<DashboardMetrics>>();
 
@@ -53,6 +54,11 @@ const getDashboardMetrics = async (query: DashboardMetricsQuery, mode: LoadMode 
       throw new Error("message" in payload && payload.message ? payload.message : "Amplitude 사용자 지표를 불러오지 못했습니다.");
     }
     const result = payload as DashboardMetrics;
+    while (dashboardCache.size >= DASHBOARD_CLIENT_CACHE_MAX_ENTRIES) {
+      const oldest = dashboardCache.keys().next().value;
+      if (typeof oldest !== "string") break;
+      dashboardCache.delete(oldest);
+    }
     dashboardCache.set(cacheKey, { value: result, expiresAt: Date.now() + DASHBOARD_CLIENT_CACHE_TTL_MS });
     return result;
   })();
