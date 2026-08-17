@@ -5,6 +5,7 @@ export type LoadMode = "success" | "empty" | "error";
  * 실제 분석 API의 필드명과 enum은 adapter에서 이 모델로 변환합니다.
  */
 export type DashboardGranularity = "day" | "week" | "month" | "range";
+export type DashboardMetricKey = "dau" | "wau" | "mau";
 
 export type DashboardMetricsQuery = {
   granularity: DashboardGranularity;
@@ -41,6 +42,7 @@ export type DashboardMetrics = {
   androidUsers: number | null;
   iosUsers: number | null;
   trend: DashboardTrendPoint[];
+  metricTrends: Record<DashboardMetricKey, DashboardTrendPoint[]>;
 };
 
 export type NotificationAudience = "all" | "android" | "ios" | "selected";

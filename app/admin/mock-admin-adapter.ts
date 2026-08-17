@@ -6,8 +6,10 @@ import type {
   BrandDraft,
   BrandRecord,
   DashboardGranularity,
+  DashboardMetricKey,
   DashboardMetrics,
   DashboardMetricsQuery,
+  DashboardTrendPoint,
   AnalyticsRefreshResult,
   DictionaryDraft,
   DictionaryRecord,
@@ -89,6 +91,12 @@ const dashboardTrendDates = (end: Dayjs, granularity: DashboardGranularity, rang
   return Array.from({ length: count }, (_, index) => end.subtract(count - index - 1, unit));
 };
 
+const dashboardMetricTrendDates = (end: Dayjs, granularity: DashboardGranularity, rangeStart: Dayjs | undefined, interval: number) => {
+  if (granularity !== "range" || !rangeStart?.isValid()) return dashboardTrendDates(end, granularity);
+  const count = Math.max(1, Math.ceil((end.diff(rangeStart.startOf("day"), "day") + 1) / interval));
+  return Array.from({ length: count }, (_, index) => rangeStart.startOf("day").add(index * interval, "day"));
+};
+
 const dashboardPointLabel = (date: Dayjs, granularity: DashboardGranularity) => {
   if (granularity === "month") return date.format("YY.M");
   if (granularity === "week") return `${date.format("M.D")} 주`;
@@ -118,6 +126,7 @@ export const mockAdminAdapter: AdminAdapter = {
     const emptyMetric = { value: 0, startDate: asOf.format("YYYY-MM-DD"), endDate: asOf.format("YYYY-MM-DD") };
 
     if (mode === "empty" || safeAnchor.isBefore(DASHBOARD_EPOCH, "day")) {
+      const emptyTrends = { dau: [], wau: [], mau: [] } satisfies Record<DashboardMetricKey, never[]>;
       return {
         hasData: false,
         asOfDate: asOf.format("YYYY-MM-DD"),
@@ -127,22 +136,30 @@ export const mockAdminAdapter: AdminAdapter = {
         androidUsers: 0,
         iosUsers: 0,
         trend: [],
+        metricTrends: emptyTrends,
       };
     }
 
-    const trend = dashboardTrendDates(asOf, query.granularity, requestedRangeStart)
+    const buildMetricTrend = (metric: DashboardMetricKey, interval: number) => dashboardMetricTrendDates(asOf, query.granularity, requestedRangeStart, interval)
       .filter((date) => !date.isBefore(DASHBOARD_EPOCH, "day"))
       .map((date) => {
         const point = dashboardValuesAt(date);
         return {
           date: date.format("YYYY-MM-DD"),
           label: dashboardPointLabel(date, query.granularity),
-          activeUsers: query.granularity === "day" || query.granularity === "range" ? point.dau : query.granularity === "week" ? point.wau : point.mau,
+          activeUsers: point[metric],
           totalUsers: point.totalUsers,
           androidUsers: point.androidUsers,
           iosUsers: point.iosUsers,
         };
       });
+    const metricTrends = {
+      dau: buildMetricTrend("dau", 1),
+      wau: buildMetricTrend("wau", 7),
+      mau: buildMetricTrend("mau", 30),
+    } satisfies Record<DashboardMetricKey, DashboardTrendPoint[]>;
+    const selectedMetric: DashboardMetricKey = query.granularity === "day" || query.granularity === "range" ? "dau" : query.granularity === "week" ? "wau" : "mau";
+    const trend = metricTrends[selectedMetric];
 
     return {
       hasData: true,
@@ -157,6 +174,7 @@ export const mockAdminAdapter: AdminAdapter = {
       androidUsers: values.androidUsers,
       iosUsers: values.iosUsers,
       trend,
+      metricTrends,
     };
   },
 

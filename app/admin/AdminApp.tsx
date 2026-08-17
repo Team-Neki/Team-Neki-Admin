@@ -49,6 +49,7 @@ import type {
   BrandDraft,
   BrandRecord,
   DashboardGranularity,
+  DashboardMetricKey,
   DashboardMetricValue,
   DashboardMetrics,
   DashboardTrendPoint,
@@ -223,6 +224,9 @@ const dashboardMetricPeriodLabel = (metric?: DashboardMetricValue) => {
 const dashboardActiveMetric = (granularity: DashboardGranularity) =>
   granularity === "day" || granularity === "range" ? "DAU" : granularity === "week" ? "WAU" : "MAU";
 
+const dashboardMetricTrend = (metrics: DashboardMetrics | undefined, key: DashboardMetricKey, activeMetric: string) =>
+  metrics?.metricTrends?.[key] ?? (activeMetric === key.toUpperCase() ? metrics?.trend ?? [] : []);
+
 function DashboardActivityChart({ points, metric }: { points: DashboardTrendPoint[]; metric: string }) {
   const maxValue = Math.max(...points.map((point) => point.activeUsers), 1);
   return (
@@ -363,7 +367,6 @@ function OverviewScreen({ mode }: { mode: LoadMode }) {
   const activeMetric = dashboardActiveMetric(granularity);
   const hasCurrentMetrics = metricsQueryKey === queryKey;
   const hasData = Boolean(hasCurrentMetrics && metrics?.hasData);
-  const hasTrendData = Boolean(hasData && metrics?.trend.length);
   const hasPlatformTrendData = Boolean(hasData && metrics?.trend.some((point) => point.totalUsers !== null || point.androidUsers !== null || point.iosUsers !== null));
   const dashboardPending = !dashboardError && (dashboardLoading || !hasCurrentMetrics);
   const movePeriod = (direction: -1 | 1) => {
@@ -480,13 +483,19 @@ function OverviewScreen({ mode }: { mode: LoadMode }) {
           </section>
 
           <section className="dashboard-chart-grid" aria-label="사용자 지표 추이" aria-busy={dashboardPending}>
-            <Card className="content-card dashboard-chart-card">
-              <div className="dashboard-chart-heading">
-                <div><Title level={2}>활성 사용자 추이</Title><Text type="secondary">선택한 단위의 {activeMetric}</Text></div>
-                <Tag>{activeMetric}</Tag>
-              </div>
-              {metrics && hasCurrentMetrics && hasTrendData ? <DashboardActivityChart points={metrics.trend} metric={activeMetric} /> : <DashboardChartState loading={dashboardPending} empty={!hasTrendData} />}
-            </Card>
+            {DASHBOARD_METRIC_CARDS.map((item) => {
+              const metricTrend = metrics && hasCurrentMetrics ? dashboardMetricTrend(metrics, item.key, activeMetric) : [];
+              const hasMetricTrend = metricTrend.length > 0;
+              return (
+                <Card key={`dashboard-chart-${item.key}`} className="content-card dashboard-chart-card">
+                  <div className="dashboard-chart-heading">
+                    <div><Title level={2}>{item.label} 추이</Title><Text type="secondary">선택한 기간의 {item.description}</Text></div>
+                    <Tag>{item.label}</Tag>
+                  </div>
+                  {metrics && hasCurrentMetrics && hasMetricTrend ? <DashboardActivityChart points={metricTrend} metric={item.label} /> : <DashboardChartState loading={dashboardPending} empty={!hasMetricTrend} />}
+                </Card>
+              );
+            })}
 
             <Card className="content-card dashboard-chart-card">
               <div className="dashboard-chart-heading dashboard-platform-heading">

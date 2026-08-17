@@ -124,7 +124,8 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(dashboardRoute, /AMPLITUDE_REQUEST_CONCURRENCY = 1/);
   assert.match(dashboardRoute, /const amplitudeResponseCache/);
   assert.match(dashboardRoute, /const cachedAmplitudeRequest/);
-  assert.match(dashboardRoute, /const queryConfigs = metricConfigs\.map\(\(config\) => \{[\s\S]*config\.key !== activeMetricKey[\s\S]*points: 1[\s\S]*granularity === "range"/);
+  assert.match(dashboardRoute, /const isExplicitRange = granularity === "range"/);
+  assert.match(dashboardRoute, /const queryConfigs = metricConfigs\.map\(\(config\) => \{[\s\S]*Math\.ceil\(rangeDays \/ config\.interval\)[\s\S]*config\.key !== activeMetricKey[\s\S]*points: 1/);
   assert.match(apiAdapter, /const normalizeDashboardAnchor/);
   assert.match(apiAdapter, /query\.rangeStartDate && query\.rangeEndDate/);
   assert.doesNotMatch(dashboardRoute, /fallback|mockAdminAdapter/);
@@ -321,6 +322,7 @@ test("keeps dashboard metrics date-driven, platform-aware, and isolated behind t
   assert.match(dashboardCode, /\{ label: "오늘", value: "day" \}[\s\S]*\{ label: "이번 주", value: "week" \}[\s\S]*\{ label: "이번 달", value: "month" \}/);
   assert.match(overviewScreen, /<Segmented<Exclude<DashboardGranularity, "range">>[\s\S]*name="dashboard-presets"[\s\S]*options=\{DASHBOARD_PRESET_OPTIONS\}[\s\S]*aria-label="조회 기간 프리셋"/);
   assert.match(overviewScreen, /<DatePicker\.RangePicker[\s\S]*value=\{customRange\}[\s\S]*format="YYYY\.MM\.DD"[\s\S]*placeholder=\{\["시작일", "종료일"\]\}[\s\S]*aria-label="조회 기간"/);
+  assert.match(overviewScreen, /DASHBOARD_METRIC_CARDS\.map\(\(item\) => \{[\s\S]*dashboardMetricTrend\(metrics, item\.key, activeMetric\)[\s\S]*\{item\.label\} 추이/);
   assert.match(overviewScreen, /<Button size="small" disabled=\{isEarliestPeriod\} onClick=\{\(\) => movePeriod\(-1\)\}>이전<\/Button>/);
   assert.match(overviewScreen, /<Button size="small" disabled=\{isCurrentPeriod \|\| granularity === "range"\} onClick=\{\(\) => movePeriod\(1\)\}>다음<\/Button>/);
   assert.match(overviewScreen, /setCustomRange\(currentPresetRange\(value, currentDate\)\)/);
@@ -358,7 +360,7 @@ test("keeps dashboard metrics date-driven, platform-aware, and isolated behind t
   assert.match(types, /export type DashboardGranularity = "day" \| "week" \| "month" \| "range"/);
   assert.match(types, /export type DashboardMetricsQuery = \{[\s\S]*granularity: DashboardGranularity;[\s\S]*anchorDate: string;[\s\S]*rangeStartDate\?: string;[\s\S]*rangeEndDate\?: string;/);
   assert.match(types, /export type DashboardTrendPoint = \{[\s\S]*activeUsers: number;[\s\S]*totalUsers: number \| null;[\s\S]*androidUsers: number \| null;[\s\S]*iosUsers: number \| null;/);
-  assert.match(types, /export type DashboardMetrics = \{[\s\S]*hasData: boolean;[\s\S]*dau: DashboardMetricValue;[\s\S]*wau: DashboardMetricValue;[\s\S]*mau: DashboardMetricValue;[\s\S]*trend: DashboardTrendPoint\[\];/);
+  assert.match(types, /export type DashboardMetrics = \{[\s\S]*hasData: boolean;[\s\S]*dau: DashboardMetricValue;[\s\S]*wau: DashboardMetricValue;[\s\S]*mau: DashboardMetricValue;[\s\S]*trend: DashboardTrendPoint\[\];[\s\S]*metricTrends: Record<DashboardMetricKey, DashboardTrendPoint\[\]\>;/);
   assert.match(types, /getDashboardMetrics\(query: DashboardMetricsQuery, mode\?: LoadMode\): Promise<DashboardMetrics>/);
   assert.match(mockAdapter, /async getDashboardMetrics\(query: DashboardMetricsQuery, mode: LoadMode = "success"\): Promise<DashboardMetrics>/);
   assert.match(mockAdapter, /mode === "error"[\s\S]*사용자 지표를 불러오지 못했습니다/);
@@ -367,8 +369,8 @@ test("keeps dashboard metrics date-driven, platform-aware, and isolated behind t
   assert.doesNotMatch(mockAdapter, /const totalUsers = androidUsers \+ iosUsers/);
   assert.match(mockAdapter, /const DASHBOARD_EPOCH = dayjs\("2023-01-01"\)/);
   assert.match(mockAdapter, /mode === "empty" \|\| safeAnchor\.isBefore\(DASHBOARD_EPOCH, "day"\)/);
-  assert.match(mockAdapter, /dashboardTrendDates\(asOf, query\.granularity, requestedRangeStart\)[\s\S]*\.filter\(\(date\) => !date\.isBefore\(DASHBOARD_EPOCH, "day"\)\)/);
-  assert.match(mockAdapter, /query\.granularity === "day" \|\| query\.granularity === "range" \? point\.dau : query\.granularity === "week" \? point\.wau : point\.mau/);
+  assert.match(mockAdapter, /dashboardMetricTrendDates\(asOf, query\.granularity, requestedRangeStart, interval\)[\s\S]*\.filter\(\(date\) => !date\.isBefore\(DASHBOARD_EPOCH, "day"\)\)/);
+  assert.match(mockAdapter, /const metricTrends = \{[\s\S]*dau: buildMetricTrend\("dau", 1\)[\s\S]*wau: buildMetricTrend\("wau", 7\)[\s\S]*mau: buildMetricTrend\("mau", 30\)/);
   assert.doesNotMatch(overviewScreen, /mockAdminAdapter|mock-admin-adapter/);
 
   assert.doesNotMatch(css, /\.next-actions-card\b|\.action-list\b/);

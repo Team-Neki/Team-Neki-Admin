@@ -34,6 +34,7 @@ type DashboardMetricsResponse = {
   androidUsers: number | null;
   iosUsers: number | null;
   trend: DashboardTrendPoint[];
+  metricTrends: Record<UserMetricKey, DashboardTrendPoint[]>;
 };
 type UserMetricKey = "dau" | "wau" | "mau";
 type UserMetricConfig = {
@@ -264,9 +265,13 @@ export async function GET(request: Request) {
     const responses: Array<{ config: UserMetricConfig; series: UserMetricSeries }> = [];
     const activeMetricKey = selectedMetricKey(granularity);
     const rangeDays = Math.max(1, Math.floor((asOfDate.getTime() - selectedPeriod.start.getTime()) / 86_400_000) + 1);
+    const isExplicitRange = granularity === "range";
     const queryConfigs = metricConfigs.map((config) => {
+      if (isExplicitRange) {
+        return { ...config, points: Math.max(1, Math.ceil(rangeDays / config.interval)) };
+      }
       if (config.key !== activeMetricKey) return { ...config, points: 1 };
-      return granularity === "range" ? { ...config, points: rangeDays } : config;
+      return config;
     });
     for (const config of queryConfigs) {
       const startDate = addDays(asOfDate, -(config.points - 1) * config.interval);
@@ -292,16 +297,17 @@ export async function GET(request: Request) {
     const dau = byMetric.get("dau")?.series ?? { dates: [], active: [], total: [], android: [], ios: [] };
     const wau = byMetric.get("wau")?.series ?? { dates: [], active: [], total: [], android: [], ios: [] };
     const mau = byMetric.get("mau")?.series ?? { dates: [], active: [], total: [], android: [], ios: [] };
-    const selectedSeries = granularity === "day" || granularity === "range" ? dau : granularity === "week" ? wau : mau;
     const hasNewUsers = newUsers.dates.length > 0;
-    const trend = selectedSeries.dates.map((date, index) => ({
+    const toTrend = (series: UserMetricSeries): DashboardTrendPoint[] => series.dates.map((date, index) => ({
       date,
-      label: periodLabel(date, granularity),
-      activeUsers: selectedSeries.active[index] ?? 0,
-      totalUsers: selectedSeries.total[index] ?? null,
-      androidUsers: selectedSeries.android[index] ?? null,
-      iosUsers: selectedSeries.ios[index] ?? null,
+      label: periodLabel(date, granularity === "range" ? "range" : granularity),
+      activeUsers: series.active[index] ?? 0,
+      totalUsers: series.total[index] ?? null,
+      androidUsers: series.android[index] ?? null,
+      iosUsers: series.ios[index] ?? null,
     }));
+    const metricTrends = { dau: toTrend(dau), wau: toTrend(wau), mau: toTrend(mau) };
+    const trend = metricTrends[activeMetricKey];
     return {
       hasData: responses.some((item) => item.series.active.length > 0),
       asOfDate: formatDate(asOfDate),
@@ -315,6 +321,7 @@ export async function GET(request: Request) {
       androidUsers: hasNewUsers ? sumValues(newUsers.android) : null,
       iosUsers: hasNewUsers ? sumValues(newUsers.ios) : null,
       trend,
+      metricTrends,
     };
   };
 
