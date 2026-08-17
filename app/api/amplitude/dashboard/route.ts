@@ -162,7 +162,7 @@ const startOfMonth = (date: Date) => new Date(Date.UTC(date.getUTCFullYear(), da
 const endOfMonth = (date: Date) => new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0));
 
 const getPeriod = (anchor: Date, granularity: DashboardGranularity, rangeStartValue?: string | null, rangeEndValue?: string | null) => {
-  if (granularity === "range") {
+  if (rangeStartValue || rangeEndValue || granularity === "range") {
     const rangeStart = normalizeAnchorDate(rangeStartValue ?? formatDate(anchor));
     const rangeEnd = normalizeAnchorDate(rangeEndValue ?? formatDate(anchor));
     return rangeStart <= rangeEnd ? { start: rangeStart, end: rangeEnd } : { start: rangeEnd, end: rangeStart };

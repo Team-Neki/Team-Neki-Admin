@@ -457,7 +457,7 @@ button { -webkit-tap-highlight-color: transparent; }
   .pose-upload-previews { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .dashboard-date-toolbar { display: grid; grid-template-columns: 1fr; }
   .dashboard-date-toolbar > .ant-segmented { width: 100%; }
-  .dashboard-date-toolbar > .ant-segmented .ant-segmented-group { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .dashboard-date-toolbar > .ant-segmented .ant-segmented-group { display: grid; grid-template-columns: repeat(3, 1fr); }
   .dashboard-date-controls { grid-template-columns: auto minmax(0, 1fr) auto; }
   .dashboard-period-summary > .ant-typography:last-child { width: 100%; margin-left: 0; }
   .dashboard-chart-card .ant-card-body { padding: 17px 16px; }

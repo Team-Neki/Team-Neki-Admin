@@ -70,7 +70,7 @@ const dashboardValuesAt = (date: Dayjs) => {
 };
 
 const dashboardPeriodEnd = (anchor: Dayjs, granularity: DashboardGranularity, rangeEnd?: string) => {
-  if (granularity === "range" && rangeEnd) {
+  if (rangeEnd) {
     const parsed = dayjs(rangeEnd);
     if (parsed.isValid()) return parsed.endOf("day");
   }

@@ -13,7 +13,7 @@ const dashboardCache = new Map<string, { value: DashboardMetrics; expiresAt: num
 const dashboardInFlight = new Map<string, Promise<DashboardMetrics>>();
 
 const normalizeDashboardAnchor = (query: DashboardMetricsQuery) => {
-  if (query.granularity === "range" && query.rangeStartDate && query.rangeEndDate) {
+  if (query.rangeStartDate && query.rangeEndDate) {
     return `${query.rangeStartDate}:${query.rangeEndDate}`;
   }
   const parsed = new Date(`${query.anchorDate}T00:00:00Z`);
@@ -40,7 +40,7 @@ const getDashboardMetrics = async (query: DashboardMetricsQuery, mode: LoadMode 
 
   const request = (async () => {
     const params = new URLSearchParams({ granularity: query.granularity, anchorDate: query.anchorDate });
-    if (query.granularity === "range" && query.rangeStartDate && query.rangeEndDate) {
+    if (query.rangeStartDate && query.rangeEndDate) {
       params.set("rangeStartDate", query.rangeStartDate);
       params.set("rangeEndDate", query.rangeEndDate);
     }
