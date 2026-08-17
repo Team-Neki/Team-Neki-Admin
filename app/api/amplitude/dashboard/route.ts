@@ -228,25 +228,27 @@ export async function GET(request: Request) {
   const loadMetrics = async (): Promise<DashboardMetricsResponse> => {
     const baseUrl = region.toLowerCase() === "eu" ? "https://analytics.eu.amplitude.com" : "https://amplitude.com";
     const auth = btoa(`${apiKey}:${secretKey}`);
-    const responsesPromise = Promise.all(metricConfigs.map((config) => {
+    const responses: Array<{ config: UserMetricConfig; series: UserMetricSeries }> = [];
+    for (const config of metricConfigs) {
       const startDate = addDays(asOfDate, -(config.points - 1) * config.interval);
-      return amplitudeRequest<AmplitudeUsersResponse>(baseUrl, auth, new URLSearchParams({
+      const response = await amplitudeRequest<AmplitudeUsersResponse>(baseUrl, auth, new URLSearchParams({
         start: formatAmplitudeDate(startDate),
         end: formatAmplitudeDate(asOfDate),
         m: "active",
         i: String(config.interval),
         g: "platform",
-      })).then((response) => ({ config, series: parseUserMetricSeries(response) }));
-    }));
+      }));
+      responses.push({ config, series: parseUserMetricSeries(response) });
+    }
     const projectStartDate = normalizeAnchorDate(projectStartDateValue || "2024-01-01");
-    const newUsersPromise = amplitudeRequest<AmplitudeUsersResponse>(baseUrl, auth, new URLSearchParams({
+    const newUsersResponse = await amplitudeRequest<AmplitudeUsersResponse>(baseUrl, auth, new URLSearchParams({
       start: formatAmplitudeDate(projectStartDate > asOfDate ? asOfDate : projectStartDate),
       end: formatAmplitudeDate(asOfDate),
       m: "new",
       i: "30",
       g: "platform",
-    })).then(parseUserMetricSeries);
-    const [responses, newUsers] = await Promise.all([responsesPromise, newUsersPromise]);
+    }));
+    const newUsers = parseUserMetricSeries(newUsersResponse);
     const byMetric = new Map(responses.map((item) => [item.config.key, item]));
     const dau = byMetric.get("dau")?.series ?? { dates: [], active: [], total: [], android: [], ios: [] };
     const wau = byMetric.get("wau")?.series ?? { dates: [], active: [], total: [], android: [], ios: [] };
