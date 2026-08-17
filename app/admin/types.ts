@@ -4,11 +4,13 @@ export type LoadMode = "success" | "empty" | "error";
  * 대시보드가 사용하는 화면 전용 조회 모델입니다.
  * 실제 분석 API의 필드명과 enum은 adapter에서 이 모델로 변환합니다.
  */
-export type DashboardGranularity = "day" | "week" | "month";
+export type DashboardGranularity = "day" | "week" | "month" | "range";
 
 export type DashboardMetricsQuery = {
   granularity: DashboardGranularity;
   anchorDate: string;
+  rangeStartDate?: string;
+  rangeEndDate?: string;
 };
 
 export type DashboardMetricValue = {

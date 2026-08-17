@@ -180,9 +180,10 @@ button { -webkit-tap-highlight-color: transparent; }
 
 .dashboard-date-card .ant-card-body { padding: 16px 18px; }
 .dashboard-date-toolbar { display: flex; min-width: 0; align-items: center; gap: 12px; }
-.dashboard-date-controls { display: grid; min-width: 0; grid-template-columns: auto minmax(156px, 180px) auto; align-items: center; gap: 6px; }
+.dashboard-date-controls { display: grid; min-width: 0; grid-template-columns: auto minmax(156px, 280px) auto; align-items: center; gap: 6px; }
 .dashboard-date-controls .ant-btn { min-width: 48px; }
-.dashboard-date-picker { width: 100%; }
+.dashboard-date-picker,
+.dashboard-range-picker { width: 100%; }
 .dashboard-period-summary { display: flex; min-width: 0; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin-top: 13px; padding-top: 12px; border-top: 1px solid var(--gray-50); }
 .dashboard-period-summary > .ant-typography:first-child { font-size: 13px; }
 .dashboard-period-summary > .ant-typography:last-child { margin-left: auto; font-size: 12px; }
@@ -456,7 +457,7 @@ button { -webkit-tap-highlight-color: transparent; }
   .pose-upload-previews { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .dashboard-date-toolbar { display: grid; grid-template-columns: 1fr; }
   .dashboard-date-toolbar > .ant-segmented { width: 100%; }
-  .dashboard-date-toolbar > .ant-segmented .ant-segmented-group { display: grid; grid-template-columns: repeat(3, 1fr); }
+  .dashboard-date-toolbar > .ant-segmented .ant-segmented-group { display: grid; grid-template-columns: repeat(4, 1fr); }
   .dashboard-date-controls { grid-template-columns: auto minmax(0, 1fr) auto; }
   .dashboard-period-summary > .ant-typography:last-child { width: 100%; margin-left: 0; }
   .dashboard-chart-card .ant-card-body { padding: 17px 16px; }

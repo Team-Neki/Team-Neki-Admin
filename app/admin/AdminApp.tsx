@@ -177,6 +177,7 @@ const DASHBOARD_PERIOD_OPTIONS = [
   { label: "오늘", value: "day" },
   { label: "이번 주", value: "week" },
   { label: "이번 달", value: "month" },
+  { label: "직접 설정", value: "range" },
 ] satisfies Array<{ label: string; value: DashboardGranularity }>;
 
 const DASHBOARD_MIN_DATE = dayjs("2024-01-01");
@@ -195,16 +196,20 @@ const DASHBOARD_SERIES_LABELS: Record<DashboardUserSeries, string> = {
   ios: "iOS",
 };
 
-const dashboardPeriodRange = (anchor: Dayjs, granularity: DashboardGranularity) => {
+const dashboardPeriodRange = (anchor: Dayjs, granularity: DashboardGranularity, customRange?: [Dayjs, Dayjs] | null) => {
+  if (granularity === "range" && customRange) {
+    return { start: customRange[0].startOf("day"), end: customRange[1].endOf("day") };
+  }
   if (granularity === "week") return { start: anchor.startOf("week"), end: anchor.endOf("week") };
   if (granularity === "month") return { start: anchor.startOf("month"), end: anchor.endOf("month") };
   return { start: anchor.startOf("day"), end: anchor.endOf("day") };
 };
 
-const dashboardPeriodLabel = (anchor: Dayjs, granularity: DashboardGranularity) => {
-  const { start, end } = dashboardPeriodRange(anchor, granularity);
+const dashboardPeriodLabel = (anchor: Dayjs, granularity: DashboardGranularity, customRange?: [Dayjs, Dayjs] | null) => {
+  const { start, end } = dashboardPeriodRange(anchor, granularity, customRange);
   if (granularity === "day") return start.format("YYYY년 M월 D일");
   if (granularity === "month") return start.format("YYYY년 M월");
+  if (granularity === "range") return `${start.format("YYYY.MM.DD")} – ${end.format("YYYY.MM.DD")}`;
   return `${start.format("YYYY.MM.DD")} – ${end.format("YYYY.MM.DD")}`;
 };
 
@@ -217,7 +222,7 @@ const dashboardMetricPeriodLabel = (metric?: DashboardMetricValue) => {
 };
 
 const dashboardActiveMetric = (granularity: DashboardGranularity) =>
-  granularity === "day" ? "DAU" : granularity === "week" ? "WAU" : "MAU";
+  granularity === "day" || granularity === "range" ? "DAU" : granularity === "week" ? "WAU" : "MAU";
 
 function DashboardActivityChart({ points, metric }: { points: DashboardTrendPoint[]; metric: string }) {
   const maxValue = Math.max(...points.map((point) => point.activeUsers), 1);
@@ -305,23 +310,27 @@ function DashboardChartState({ loading, empty, emptyDescription = "선택한 기
 function OverviewScreen({ mode }: { mode: LoadMode }) {
   const [granularity, setGranularity] = useState<DashboardGranularity>("day");
   const [anchorDate, setAnchorDate] = useState(() => dayjs().startOf("day"));
+  const [customRange, setCustomRange] = useState<[Dayjs, Dayjs] | null>(null);
   const [metrics, setMetrics] = useState<DashboardMetrics>();
   const [metricsQueryKey, setMetricsQueryKey] = useState("");
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState(false);
   const [visibleSeries, setVisibleSeries] = useState<DashboardUserSeries[]>(["total", "android", "ios"]);
   const dashboardRequest = useRef(0);
-  const requestAnchorDate = dashboardPeriodRange(anchorDate, granularity).start.format("YYYY-MM-DD");
-  const queryKey = `${granularity}:${requestAnchorDate}`;
+  const currentDate = dayjs().startOf("day");
+  const selectedPeriod = dashboardPeriodRange(anchorDate, granularity, customRange);
+  const queryKey = `${granularity}:${selectedPeriod.start.format("YYYY-MM-DD")}:${selectedPeriod.end.startOf("day").format("YYYY-MM-DD")}`;
 
   const loadDashboardMetrics = useCallback(async () => {
     const request = ++dashboardRequest.current;
     setDashboardLoading(true);
     setDashboardError(false);
     try {
+      const [, requestAnchorDate, requestEndDate] = queryKey.split(":");
       const result = await adminAdapter.getDashboardMetrics({
         granularity,
         anchorDate: requestAnchorDate,
+        ...(granularity === "range" ? { rangeStartDate: requestAnchorDate, rangeEndDate: requestEndDate } : {}),
       }, mode);
       if (request === dashboardRequest.current) {
         setMetrics(result);
@@ -332,19 +341,19 @@ function OverviewScreen({ mode }: { mode: LoadMode }) {
     } finally {
       if (request === dashboardRequest.current) setDashboardLoading(false);
     }
-  }, [granularity, mode, queryKey, requestAnchorDate]);
+  }, [granularity, mode, queryKey]);
 
   useEffect(() => {
     const dashboardLoad = window.setTimeout(() => void loadDashboardMetrics(), 0);
     return () => window.clearTimeout(dashboardLoad);
   }, [loadDashboardMetrics]);
 
-  const currentDate = dayjs().startOf("day");
-  const currentPeriod = dashboardPeriodRange(currentDate, granularity);
-  const selectedPeriod = dashboardPeriodRange(anchorDate, granularity);
-  const isCurrentPeriod = selectedPeriod.start.isSame(currentPeriod.start, "day");
-  const earliestPeriod = dashboardPeriodRange(DASHBOARD_MIN_DATE, granularity);
-  const isEarliestPeriod = selectedPeriod.start.isSame(earliestPeriod.start, "day");
+  const currentPeriod = dashboardPeriodRange(currentDate, granularity, granularity === "range" ? [currentDate, currentDate] : null);
+  const isCurrentPeriod = granularity === "range"
+    ? Boolean(customRange?.[1].isSame(currentDate, "day"))
+    : selectedPeriod.start.isSame(currentPeriod.start, "day");
+  const earliestPeriod = dashboardPeriodRange(DASHBOARD_MIN_DATE, granularity, granularity === "range" ? [DASHBOARD_MIN_DATE, DASHBOARD_MIN_DATE] : null);
+  const isEarliestPeriod = granularity === "range" || selectedPeriod.start.isSame(earliestPeriod.start, "day");
   const activeMetric = dashboardActiveMetric(granularity);
   const hasCurrentMetrics = metricsQueryKey === queryKey;
   const hasData = Boolean(hasCurrentMetrics && metrics?.hasData);
@@ -352,6 +361,7 @@ function OverviewScreen({ mode }: { mode: LoadMode }) {
   const hasPlatformTrendData = Boolean(hasData && metrics?.trend.some((point) => point.totalUsers !== null || point.androidUsers !== null || point.iosUsers !== null));
   const dashboardPending = !dashboardError && (dashboardLoading || !hasCurrentMetrics);
   const movePeriod = (direction: -1 | 1) => {
+    if (granularity === "range") return;
     const unit = granularity === "day" ? "day" : granularity;
     setAnchorDate((current) => {
       const next = current.add(direction, unit).startOf("day");
@@ -379,32 +389,58 @@ function OverviewScreen({ mode }: { mode: LoadMode }) {
             name="dashboard-period"
             value={granularity}
             options={DASHBOARD_PERIOD_OPTIONS}
-            onChange={(value) => { setGranularity(value); setAnchorDate(currentDate); }}
+            onChange={(value) => {
+              setGranularity(value);
+              setAnchorDate(currentDate);
+              setCustomRange(value === "range" ? [currentDate.subtract(6, "day"), currentDate] : null);
+            }}
             aria-label="조회 기간"
           />
           <div className="dashboard-date-controls">
             <Button size="small" disabled={isEarliestPeriod} onClick={() => movePeriod(-1)}>이전</Button>
-            <DatePicker
-              className="dashboard-date-picker"
-              picker="date"
-              value={anchorDate}
-              allowClear={false}
-              inputReadOnly
-              minDate={DASHBOARD_MIN_DATE}
-              format="YYYY.MM.DD"
-              disabledDate={(date) => date.startOf("day").isBefore(DASHBOARD_MIN_DATE, "day") || date.startOf("day").isAfter(currentDate, "day")}
-              onChange={(date) => {
-                if (!date) return;
-                const selected = date.startOf("day");
-                setAnchorDate(selected.isAfter(currentDate, "day") ? currentDate : selected);
-              }}
-              aria-label="조회 기준 기간"
-            />
-            <Button size="small" disabled={isCurrentPeriod} onClick={() => movePeriod(1)}>다음</Button>
+            {granularity === "range" ? (
+              <DatePicker.RangePicker
+                className="dashboard-range-picker"
+                value={customRange}
+                allowClear={false}
+                inputReadOnly
+                minDate={DASHBOARD_MIN_DATE}
+                maxDate={currentDate}
+                format="YYYY.MM.DD"
+                disabledDate={(date) => date.startOf("day").isBefore(DASHBOARD_MIN_DATE, "day") || date.startOf("day").isAfter(currentDate, "day")}
+                onChange={(dates) => {
+                  if (!dates?.[0] || !dates[1]) return;
+                  const start = dates[0].startOf("day");
+                  const end = dates[1].startOf("day");
+                  setCustomRange([start, end]);
+                  setAnchorDate(end);
+                }}
+                aria-label="조회 기간 직접 설정"
+              />
+            ) : (
+              <DatePicker
+                className="dashboard-date-picker"
+                picker="date"
+                value={anchorDate}
+                allowClear={false}
+                inputReadOnly
+                minDate={DASHBOARD_MIN_DATE}
+                maxDate={currentDate}
+                format="YYYY.MM.DD"
+                disabledDate={(date) => date.startOf("day").isBefore(DASHBOARD_MIN_DATE, "day") || date.startOf("day").isAfter(currentDate, "day")}
+                onChange={(date) => {
+                  if (!date) return;
+                  const selected = date.startOf("day");
+                  setAnchorDate(selected.isAfter(currentDate, "day") ? currentDate : selected);
+                }}
+                aria-label="조회 기준 날짜"
+              />
+            )}
+            <Button size="small" disabled={isCurrentPeriod || granularity === "range"} onClick={() => movePeriod(1)}>다음</Button>
           </div>
         </div>
         <div className="dashboard-period-summary" aria-live="polite">
-          <Text strong>{dashboardPeriodLabel(anchorDate, granularity)}</Text>
+          <Text strong>{dashboardPeriodLabel(anchorDate, granularity, customRange)}</Text>
           {isCurrentPeriod && granularity !== "day" && <Tag color="processing">집계 중</Tag>}
           {dashboardPending && <Spin size="small" />}
           <Text type="secondary">

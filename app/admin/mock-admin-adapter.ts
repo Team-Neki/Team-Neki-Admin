@@ -69,15 +69,23 @@ const dashboardValuesAt = (date: Dayjs) => {
   return { dau, wau, mau, totalUsers, androidUsers, iosUsers };
 };
 
-const dashboardPeriodEnd = (anchor: Dayjs, granularity: DashboardGranularity) => {
+const dashboardPeriodEnd = (anchor: Dayjs, granularity: DashboardGranularity, rangeEnd?: string) => {
+  if (granularity === "range" && rangeEnd) {
+    const parsed = dayjs(rangeEnd);
+    if (parsed.isValid()) return parsed.endOf("day");
+  }
   if (granularity === "week") return anchor.endOf("week");
   if (granularity === "month") return anchor.endOf("month");
   return anchor.endOf("day");
 };
 
-const dashboardTrendDates = (end: Dayjs, granularity: DashboardGranularity) => {
-  const unit = granularity === "day" ? "day" : granularity;
-  const count = granularity === "day" ? 14 : 12;
+const dashboardTrendDates = (end: Dayjs, granularity: DashboardGranularity, rangeStart?: Dayjs) => {
+  if (granularity === "range" && rangeStart?.isValid()) {
+    const count = Math.max(1, end.diff(rangeStart.startOf("day"), "day") + 1);
+    return Array.from({ length: count }, (_, index) => rangeStart.startOf("day").add(index, "day"));
+  }
+  const unit = granularity === "day" || granularity === "range" ? "day" : granularity;
+  const count = granularity === "day" || granularity === "range" ? 14 : 12;
   return Array.from({ length: count }, (_, index) => end.subtract(count - index - 1, unit));
 };
 
@@ -103,7 +111,8 @@ export const mockAdminAdapter: AdminAdapter = {
     const currentDate = dayjs().startOf("day");
     const requestedDate = dayjs(query.anchorDate);
     const safeAnchor = requestedDate.isValid() ? requestedDate : currentDate;
-    const requestedEnd = dashboardPeriodEnd(safeAnchor, query.granularity).startOf("day");
+    const requestedRangeStart = query.granularity === "range" ? dayjs(query.rangeStartDate) : undefined;
+    const requestedEnd = dashboardPeriodEnd(safeAnchor, query.granularity, query.rangeEndDate).startOf("day");
     const asOf = requestedEnd.isAfter(currentDate) ? currentDate : requestedEnd;
     const values = dashboardValuesAt(asOf);
     const emptyMetric = { value: 0, startDate: asOf.format("YYYY-MM-DD"), endDate: asOf.format("YYYY-MM-DD") };
@@ -121,14 +130,14 @@ export const mockAdminAdapter: AdminAdapter = {
       };
     }
 
-    const trend = dashboardTrendDates(asOf, query.granularity)
+    const trend = dashboardTrendDates(asOf, query.granularity, requestedRangeStart)
       .filter((date) => !date.isBefore(DASHBOARD_EPOCH, "day"))
       .map((date) => {
         const point = dashboardValuesAt(date);
         return {
           date: date.format("YYYY-MM-DD"),
           label: dashboardPointLabel(date, query.granularity),
-          activeUsers: query.granularity === "day" ? point.dau : query.granularity === "week" ? point.wau : point.mau,
+          activeUsers: query.granularity === "day" || query.granularity === "range" ? point.dau : query.granularity === "week" ? point.wau : point.mau,
           totalUsers: point.totalUsers,
           androidUsers: point.androidUsers,
           iosUsers: point.iosUsers,

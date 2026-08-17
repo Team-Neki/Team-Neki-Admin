@@ -7,7 +7,7 @@ type AmplitudeUsersResponse = {
   };
 };
 
-type DashboardGranularity = "day" | "week" | "month";
+type DashboardGranularity = "day" | "week" | "month" | "range";
 type DashboardMetricValue = {
   value: number;
   startDate: string;
@@ -161,7 +161,12 @@ const startOfWeek = (date: Date) => {
 const startOfMonth = (date: Date) => new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
 const endOfMonth = (date: Date) => new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0));
 
-const getPeriod = (anchor: Date, granularity: DashboardGranularity) => {
+const getPeriod = (anchor: Date, granularity: DashboardGranularity, rangeStartValue?: string | null, rangeEndValue?: string | null) => {
+  if (granularity === "range") {
+    const rangeStart = normalizeAnchorDate(rangeStartValue ?? formatDate(anchor));
+    const rangeEnd = normalizeAnchorDate(rangeEndValue ?? formatDate(anchor));
+    return rangeStart <= rangeEnd ? { start: rangeStart, end: rangeEnd } : { start: rangeEnd, end: rangeStart };
+  }
   if (granularity === "week") {
     const start = startOfWeek(anchor);
     return { start, end: addDays(start, 6) };
@@ -185,7 +190,7 @@ const metricConfigs: UserMetricConfig[] = [
 ];
 
 const selectedMetricKey = (granularity: DashboardGranularity): UserMetricKey =>
-  granularity === "day" ? "dau" : granularity === "week" ? "wau" : "mau";
+  granularity === "day" || granularity === "range" ? "dau" : granularity === "week" ? "wau" : "mau";
 
 const platformLabel = (value: unknown) => {
   if (typeof value === "string") return value.trim().toLowerCase();
@@ -242,11 +247,11 @@ export async function GET(request: Request) {
 
   const params = new URL(request.url).searchParams;
   const requestedGranularity = params.get("granularity");
-  const granularity: DashboardGranularity = requestedGranularity === "week" || requestedGranularity === "month" ? requestedGranularity : "day";
+  const granularity: DashboardGranularity = requestedGranularity === "week" || requestedGranularity === "month" || requestedGranularity === "range" ? requestedGranularity : "day";
   const anchor = normalizeAnchorDate(params.get("anchorDate"));
-  const selectedPeriod = getPeriod(anchor, granularity);
+  const selectedPeriod = getPeriod(anchor, granularity, params.get("rangeStartDate"), params.get("rangeEndDate"));
   const asOfDate = clampToToday(selectedPeriod.end);
-  const cacheKey = `${granularity}:${formatDate(selectedPeriod.start)}:${formatDate(asOfDate)}`;
+  const cacheKey = `${granularity}:${formatDate(selectedPeriod.start)}:${formatDate(selectedPeriod.end)}:${formatDate(asOfDate)}`;
   const cached = metricsCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) return json(cached.value, 200, "private, max-age=60");
   if (cached) metricsCache.delete(cacheKey);
@@ -256,7 +261,11 @@ export async function GET(request: Request) {
     const auth = btoa(`${apiKey}:${secretKey}`);
     const responses: Array<{ config: UserMetricConfig; series: UserMetricSeries }> = [];
     const activeMetricKey = selectedMetricKey(granularity);
-    const queryConfigs = metricConfigs.map((config) => config.key === activeMetricKey ? config : { ...config, points: 1 });
+    const rangeDays = Math.max(1, Math.floor((asOfDate.getTime() - selectedPeriod.start.getTime()) / 86_400_000) + 1);
+    const queryConfigs = metricConfigs.map((config) => {
+      if (config.key !== activeMetricKey) return { ...config, points: 1 };
+      return granularity === "range" ? { ...config, points: rangeDays } : config;
+    });
     for (const config of queryConfigs) {
       const startDate = addDays(asOfDate, -(config.points - 1) * config.interval);
       const response = await cachedAmplitudeRequest<AmplitudeUsersResponse>(baseUrl, auth, new URLSearchParams({
@@ -281,7 +290,7 @@ export async function GET(request: Request) {
     const dau = byMetric.get("dau")?.series ?? { dates: [], active: [], total: [], android: [], ios: [] };
     const wau = byMetric.get("wau")?.series ?? { dates: [], active: [], total: [], android: [], ios: [] };
     const mau = byMetric.get("mau")?.series ?? { dates: [], active: [], total: [], android: [], ios: [] };
-    const selectedSeries = granularity === "day" ? dau : granularity === "week" ? wau : mau;
+    const selectedSeries = granularity === "day" || granularity === "range" ? dau : granularity === "week" ? wau : mau;
     const hasNewUsers = newUsers.dates.length > 0;
     const trend = selectedSeries.dates.map((date, index) => ({
       date,

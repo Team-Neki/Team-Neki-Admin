@@ -116,12 +116,15 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(dashboardRoute, /m: "new"/);
   assert.match(dashboardRoute, /AMPLITUDE_PROJECT_START_DATE/);
   assert.match(dashboardRoute, /g: "platform"/);
+  assert.match(dashboardRoute, /rangeStartDate/);
+  assert.match(dashboardRoute, /rangeEndDate/);
   assert.match(dashboardRoute, /METRICS_CACHE_TTL_MS = 60_000/);
   assert.match(dashboardRoute, /AMPLITUDE_REQUEST_CONCURRENCY = 1/);
   assert.match(dashboardRoute, /const amplitudeResponseCache/);
   assert.match(dashboardRoute, /const cachedAmplitudeRequest/);
-  assert.match(dashboardRoute, /const queryConfigs = metricConfigs\.map\(\(config\) => config\.key === activeMetricKey \? config : \{ \.\.\.config, points: 1 \}\)/);
+  assert.match(dashboardRoute, /const queryConfigs = metricConfigs\.map\(\(config\) => \{[\s\S]*config\.key !== activeMetricKey[\s\S]*points: 1[\s\S]*granularity === "range"/);
   assert.match(apiAdapter, /const normalizeDashboardAnchor/);
+  assert.match(apiAdapter, /query\.granularity === "range" && query\.rangeStartDate && query\.rangeEndDate/);
   assert.doesNotMatch(dashboardRoute, /fallback|mockAdminAdapter/);
   assert.match(amplitudeRoute, /AMPLITUDE_API_KEY/);
   assert.match(amplitudeRoute, /\/api\/2\/taxonomy\/event/);
@@ -312,12 +315,13 @@ test("keeps dashboard metrics date-driven, platform-aware, and isolated behind t
   assert.match(overviewScreen, /<strong>총 사용자<\/strong><small>Amplitude 신규 사용자 누적<\/small>/);
   assert.match(overviewScreen, /aria-label="활성 사용자와 총 사용자"/);
 
-  assert.match(dashboardCode, /\{ label: "오늘", value: "day" \}[\s\S]*\{ label: "이번 주", value: "week" \}[\s\S]*\{ label: "이번 달", value: "month" \}/);
+  assert.match(dashboardCode, /\{ label: "오늘", value: "day" \}[\s\S]*\{ label: "이번 주", value: "week" \}[\s\S]*\{ label: "이번 달", value: "month" \}[\s\S]*\{ label: "직접 설정", value: "range" \}/);
   assert.match(overviewScreen, /<Segmented<DashboardGranularity>[\s\S]*name="dashboard-period"[\s\S]*value=\{granularity\}[\s\S]*options=\{DASHBOARD_PERIOD_OPTIONS\}[\s\S]*aria-label="조회 기간"/);
-  assert.match(overviewScreen, /<DatePicker[\s\S]*picker="date"[\s\S]*value=\{anchorDate\}[\s\S]*allowClear=\{false\}[\s\S]*inputReadOnly[\s\S]*format="YYYY\.MM\.DD"[\s\S]*disabledDate=[\s\S]*onChange=[\s\S]*aria-label="조회 기준 기간"/);
+  assert.match(overviewScreen, /<DatePicker\.RangePicker[\s\S]*value=\{customRange\}[\s\S]*format="YYYY\.MM\.DD"[\s\S]*aria-label="조회 기간 직접 설정"/);
+  assert.match(overviewScreen, /<DatePicker[\s\S]*picker="date"[\s\S]*value=\{anchorDate\}[\s\S]*allowClear=\{false\}[\s\S]*inputReadOnly[\s\S]*format="YYYY\.MM\.DD"[\s\S]*disabledDate=[\s\S]*onChange=[\s\S]*aria-label="조회 기준 날짜"/);
   assert.match(overviewScreen, /<Button size="small" disabled=\{isEarliestPeriod\} onClick=\{\(\) => movePeriod\(-1\)\}>이전<\/Button>/);
-  assert.match(overviewScreen, /<Button size="small" disabled=\{isCurrentPeriod\} onClick=\{\(\) => movePeriod\(1\)\}>다음<\/Button>/);
-  assert.match(overviewScreen, /onChange=\{\(value\) => \{ setGranularity\(value\); setAnchorDate\(currentDate\); \}\}/);
+  assert.match(overviewScreen, /<Button size="small" disabled=\{isCurrentPeriod \|\| granularity === "range"\} onClick=\{\(\) => movePeriod\(1\)\}>다음<\/Button>/);
+  assert.match(overviewScreen, /setCustomRange\(value === "range" \? \[currentDate\.subtract\(6, "day"\), currentDate\] : null\)/);
 
   assert.equal(overviewScreen.match(/<Checkbox\.Group\b/g)?.length, 1);
   assert.match(overviewScreen, /<Checkbox\.Group<DashboardUserSeries>[\s\S]*name="dashboard-platform-series"[\s\S]*value=\{visibleSeries\}[\s\S]*options=\{platformOptions\}[\s\S]*onChange=\{\(next\) => next\.length > 0 && setVisibleSeries\(next\)\}[\s\S]*aria-label="누적 사용자 표시 항목"/);
@@ -331,7 +335,7 @@ test("keeps dashboard metrics date-driven, platform-aware, and isolated behind t
   assert.match(overviewScreen, /const \[dashboardLoading, setDashboardLoading\] = useState\(true\)/);
   assert.match(overviewScreen, /const \[dashboardError, setDashboardError\] = useState\(false\)/);
   assert.match(overviewScreen, /const dashboardRequest = useRef\(0\)/);
-  assert.match(overviewScreen, /const requestAnchorDate = dashboardPeriodRange\(anchorDate, granularity\)\.start\.format\("YYYY-MM-DD"\);[\s\S]*const queryKey = `\$\{granularity\}:\$\{requestAnchorDate\}`/);
+  assert.match(overviewScreen, /const queryKey = `\$\{granularity\}:\$\{selectedPeriod\.start\.format\("YYYY-MM-DD"\)\}:\$\{selectedPeriod\.end\.startOf\("day"\)\.format\("YYYY-MM-DD"\)\}`/);
   assert.match(overviewScreen, /setMetrics\(result\);[\s\S]*setMetricsQueryKey\(queryKey\)/);
   assert.match(overviewScreen, /const hasCurrentMetrics = metricsQueryKey === queryKey/);
   assert.match(overviewScreen, /const dashboardPending = !dashboardError && \(dashboardLoading \|\| !hasCurrentMetrics\)/);
@@ -348,8 +352,8 @@ test("keeps dashboard metrics date-driven, platform-aware, and isolated behind t
   assert.match(overviewScreen, /selected\.isAfter\(currentDate, "day"\) \? currentDate : selected/);
   assert.match(overviewScreen, /next\.isAfter\(currentDate, "day"\) \? currentDate : next/);
 
-  assert.match(types, /export type DashboardGranularity = "day" \| "week" \| "month"/);
-  assert.match(types, /export type DashboardMetricsQuery = \{[\s\S]*granularity: DashboardGranularity;[\s\S]*anchorDate: string;/);
+  assert.match(types, /export type DashboardGranularity = "day" \| "week" \| "month" \| "range"/);
+  assert.match(types, /export type DashboardMetricsQuery = \{[\s\S]*granularity: DashboardGranularity;[\s\S]*anchorDate: string;[\s\S]*rangeStartDate\?: string;[\s\S]*rangeEndDate\?: string;/);
   assert.match(types, /export type DashboardTrendPoint = \{[\s\S]*activeUsers: number;[\s\S]*totalUsers: number \| null;[\s\S]*androidUsers: number \| null;[\s\S]*iosUsers: number \| null;/);
   assert.match(types, /export type DashboardMetrics = \{[\s\S]*hasData: boolean;[\s\S]*dau: DashboardMetricValue;[\s\S]*wau: DashboardMetricValue;[\s\S]*mau: DashboardMetricValue;[\s\S]*trend: DashboardTrendPoint\[\];/);
   assert.match(types, /getDashboardMetrics\(query: DashboardMetricsQuery, mode\?: LoadMode\): Promise<DashboardMetrics>/);
@@ -360,8 +364,8 @@ test("keeps dashboard metrics date-driven, platform-aware, and isolated behind t
   assert.doesNotMatch(mockAdapter, /const totalUsers = androidUsers \+ iosUsers/);
   assert.match(mockAdapter, /const DASHBOARD_EPOCH = dayjs\("2023-01-01"\)/);
   assert.match(mockAdapter, /mode === "empty" \|\| safeAnchor\.isBefore\(DASHBOARD_EPOCH, "day"\)/);
-  assert.match(mockAdapter, /dashboardTrendDates\(asOf, query\.granularity\)[\s\S]*\.filter\(\(date\) => !date\.isBefore\(DASHBOARD_EPOCH, "day"\)\)/);
-  assert.match(mockAdapter, /query\.granularity === "day" \? point\.dau : query\.granularity === "week" \? point\.wau : point\.mau/);
+  assert.match(mockAdapter, /dashboardTrendDates\(asOf, query\.granularity, requestedRangeStart\)[\s\S]*\.filter\(\(date\) => !date\.isBefore\(DASHBOARD_EPOCH, "day"\)\)/);
+  assert.match(mockAdapter, /query\.granularity === "day" \|\| query\.granularity === "range" \? point\.dau : query\.granularity === "week" \? point\.wau : point\.mau/);
   assert.doesNotMatch(overviewScreen, /mockAdminAdapter|mock-admin-adapter/);
 
   assert.doesNotMatch(css, /\.next-actions-card\b|\.action-list\b/);
@@ -371,7 +375,7 @@ test("keeps dashboard metrics date-driven, platform-aware, and isolated behind t
   assert.match(css, /@media \(max-width: 1120px\) \{[\s\S]*\.dashboard-summary-grid \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); \}[\s\S]*\}/);
   const mobileDashboardCss = css.slice(css.indexOf("@media (max-width: 680px)"), css.indexOf("@media (max-width: 520px)"));
   assert.match(mobileDashboardCss, /\.dashboard-date-toolbar \{ display: grid; grid-template-columns: 1fr; \}/);
-  assert.match(mobileDashboardCss, /\.dashboard-date-toolbar > \.ant-segmented \.ant-segmented-group \{ display: grid; grid-template-columns: repeat\(3, 1fr\); \}/);
+  assert.match(mobileDashboardCss, /\.dashboard-date-toolbar > \.ant-segmented \.ant-segmented-group \{ display: grid; grid-template-columns: repeat\(4, 1fr\); \}/);
   assert.match(mobileDashboardCss, /\.dashboard-date-controls \{ grid-template-columns: auto minmax\(0, 1fr\) auto; \}/);
   assert.match(mobileDashboardCss, /\.dashboard-platform-heading \{ align-items: flex-start; flex-direction: column; \}/);
   assert.match(css, /@media \(max-width: 420px\) \{[\s\S]*\.dashboard-summary-grid \{ grid-template-columns: 1fr; \}/);
