@@ -10,6 +10,7 @@
 - 부스 검색·필터, 등록·상세·수정, 선택 모드 기반 일괄 폐점 처리
 - 전체 브랜드의 Android QR·iOS QR·지도 표시 상태, 3행 체크박스 조합 필터, 브랜드 추가·수정
 - 포즈 이미지 다중 업로드·미리보기, 이미지 목록과 1~4인 필터
+- 모임통장 거래내역 조회 화면(연결 상태·기간·입출금 필터·페이지네이션)
 - 지표 탭에서 Amplitude 이벤트 31개를 기능 영역·페이지·파라미터별 조회
 - 브랜드 관리에서 Android·iOS QR 파싱 로직과 이미지 획득 규칙 조회
 - 조회 로딩·빈 화면·오류·재시도와 작업 성공·실패 상태
@@ -26,6 +27,8 @@
 운영 CRUD와 포즈 업로드는 `app/admin/mock-admin-data.ts`의 시드 데이터와 메모리 기반 adapter를 사용합니다. 대시보드와 지표 화면의 새로고침은 서버 API route를 통해 Amplitude 데이터를 조회하며, API 키가 없으면 설정 안내 상태를 표시합니다. DAU·WAU·MAU는 Amplitude 활성 사용자 집계, 총 사용자는 `AMPLITUDE_PROJECT_START_DATE`부터의 신규 사용자 누적을 사용합니다. 이 값은 Neki 가입자 원장과 다를 수 있습니다. 포즈 업로드는 브라우저 메모리에만 저장되어 새로고침하면 초기화됩니다.
 
 Amplitude 조회 키는 `.env.local` 또는 배포 환경의 `AMPLITUDE_API_KEY`, `AMPLITUDE_SECRET_KEY`로 설정합니다. EU 리전에 있는 프로젝트만 `AMPLITUDE_REGION=eu`로 지정합니다. 총 사용자 누적 기준일은 `AMPLITUDE_PROJECT_START_DATE`로 조정합니다.
+
+모임통장은 기본적으로 `연결 전` 상태이며, `GROUP_ACCOUNT_DATA_MODE=mock`을 명시한 개발 환경에서만 고정 목 데이터를 반환합니다. 실제 거래내역은 금융결제원 오픈뱅킹 이용기관 승인, 계좌 명의자 동의, 제공기관별 거래내역 API 권한과 서버 측 토큰 보관이 모두 준비된 뒤 `OPENBANKING_BASE_URL`, `OPENBANKING_ACCESS_TOKEN`, `OPENBANKING_FINTECH_USE_NUM`을 서버 환경에 설정해야 합니다. 토큰과 계좌 식별자는 브라우저나 `localStorage`에 저장하지 않습니다. 실제 토스 모임통장 지원 여부와 필드 계약은 이용기관·제공기관 확인 후 어댑터에 반영합니다.
 
 렌더 검증용으로 URL에 `state=empty` 또는 `state=error`를 추가하면 목록의 빈 화면과 조회 오류 상태를 재현할 수 있습니다.
 
@@ -73,9 +76,12 @@ cp .env.local.example .env.local
 - `app/page.tsx`: 어드민 애플리케이션 진입점
 - `app/admin/AdminApp.tsx`: 공통 셸과 사용자 지표·수동 알림·부스·브랜드·포즈·지표·QR 파싱 화면
 - `app/admin/admin-adapter.ts`: mock/API 구현체를 선택하는 단일 조립 지점
-- `app/admin/api-admin-adapter.ts`: 지표 새로고침과 기존 목 adapter를 조합하는 구현체
+- `app/admin/api-admin-adapter.ts`: 지표·모임통장 조회 API와 기존 목 adapter를 조합하는 구현체
 - `app/api/amplitude/metrics/route.ts`: 서버에서 Amplitude 이벤트·활성 사용자 API를 호출하는 route
 - `app/api/amplitude/dashboard/route.ts`: 서버에서 DAU·WAU·MAU·신규 사용자 누적 API를 호출하는 route
+- `app/api/group-account/group-account-server.ts`: 오픈뱅킹 거래내역 어댑터·정규화·목 모드 경계
+- `app/api/group-account/status/route.ts`: 모임통장 연결 상태 route
+- `app/api/group-account/transactions/route.ts`: 모임통장 거래내역 조회 route
 - `app/admin/mock-admin-data.ts`: 검색·필터·페이지네이션 검증용 프로토타입 시드 데이터
 - `app/admin/mock-admin-adapter.ts`: 메모리 기반 목 조회·변경 구현체
 - `app/admin/types.ts`: 화면 모델과 구현체 공통 `AdminAdapter` 계약
