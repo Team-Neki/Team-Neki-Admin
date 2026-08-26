@@ -267,4 +267,6 @@ export interface AdminAdapter {
   saveDictionary(draft: DictionaryDraft, id?: string): Promise<DictionaryRecord>;
   uploadPoses(input: PoseUploadInput[]): Promise<PoseRecord[]>;
   refreshAnalytics(granularity: AnalyticsGranularity): Promise<AnalyticsRefreshResult>;
+  getGroupAccountStatus(): Promise<GroupAccountStatus>;
+  getGroupAccountTransactions(query: GroupAccountQuery): Promise<GroupAccountTransactionsResponse>;
 }

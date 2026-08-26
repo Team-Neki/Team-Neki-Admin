@@ -1,7 +1,21 @@
 import { mockAdminAdapter } from "./mock-admin-adapter";
-import type { AdminAdapter, AnalyticsGranularity, AnalyticsRefreshResult, DashboardMetrics, DashboardMetricsQuery, LoadMode } from "./types";
+import type {
+  AdminAdapter,
+  AnalyticsGranularity,
+  AnalyticsRefreshResult,
+  DashboardMetrics,
+  DashboardMetricsQuery,
+  GroupAccountQuery,
+  GroupAccountStatus,
+  GroupAccountTransactionsResponse,
+  LoadMode,
+} from "./types";
 
 type AnalyticsApiError = {
+  message?: string;
+};
+
+type GroupAccountApiError = {
   message?: string;
 };
 
@@ -12,6 +26,12 @@ const DASHBOARD_CLIENT_CACHE_TTL_MS = 60_000;
 const DASHBOARD_CLIENT_CACHE_MAX_ENTRIES = 32;
 const dashboardCache = new Map<string, { value: DashboardMetrics; expiresAt: number }>();
 const dashboardInFlight = new Map<string, Promise<DashboardMetrics>>();
+const GROUP_ACCOUNT_CLIENT_CACHE_TTL_MS = 60_000;
+const GROUP_ACCOUNT_CLIENT_CACHE_MAX_ENTRIES = 32;
+const groupAccountStatusCache: { value?: GroupAccountStatus; expiresAt: number } = { expiresAt: 0 };
+const groupAccountStatusInFlight: { value?: Promise<GroupAccountStatus> } = {};
+const groupAccountTransactionsCache = new Map<string, { value: GroupAccountTransactionsResponse; expiresAt: number }>();
+const groupAccountTransactionsInFlight = new Map<string, Promise<GroupAccountTransactionsResponse>>();
 
 const normalizeDashboardAnchor = (query: DashboardMetricsQuery) => {
   if (query.rangeStartDate && query.rangeEndDate) {
@@ -71,6 +91,73 @@ const getDashboardMetrics = async (query: DashboardMetricsQuery, mode: LoadMode 
   }
 };
 
+const readGroupAccountJson = async <T>(response: Response) => {
+  try {
+    return await response.json() as T;
+  } catch {
+    return {} as T;
+  }
+};
+
+const groupAccountErrorMessage = (payload: GroupAccountApiError, fallback: string) =>
+  payload.message || fallback;
+
+const getGroupAccountStatus = async (): Promise<GroupAccountStatus> => {
+  const now = Date.now();
+  if (groupAccountStatusCache.value && groupAccountStatusCache.expiresAt > now) return groupAccountStatusCache.value;
+  if (groupAccountStatusCache.value) groupAccountStatusCache.value = undefined;
+  if (groupAccountStatusInFlight.value) return groupAccountStatusInFlight.value;
+
+  const request = (async () => {
+    const response = await fetch("/api/group-account/status", { headers: { Accept: "application/json" }, cache: "default" });
+    const payload = await readGroupAccountJson<GroupAccountStatus | GroupAccountApiError>(response);
+    if (!response.ok) throw new Error(groupAccountErrorMessage(payload as GroupAccountApiError, "계좌 연결 상태를 확인하지 못했습니다."));
+    const result = payload as GroupAccountStatus;
+    groupAccountStatusCache.value = result;
+    groupAccountStatusCache.expiresAt = Date.now() + GROUP_ACCOUNT_CLIENT_CACHE_TTL_MS;
+    return result;
+  })();
+
+  groupAccountStatusInFlight.value = request;
+  try {
+    return await request;
+  } finally {
+    if (groupAccountStatusInFlight.value === request) groupAccountStatusInFlight.value = undefined;
+  }
+};
+
+const getGroupAccountTransactions = async (query: GroupAccountQuery): Promise<GroupAccountTransactionsResponse> => {
+  const cacheKey = `${query.from}:${query.to}:${query.direction}:${query.page}`;
+  const now = Date.now();
+  const cached = groupAccountTransactionsCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) return cached.value;
+  if (cached) groupAccountTransactionsCache.delete(cacheKey);
+  const pending = groupAccountTransactionsInFlight.get(cacheKey);
+  if (pending) return pending;
+
+  const request = (async () => {
+    const params = new URLSearchParams({ from: query.from, to: query.to, direction: query.direction, page: String(query.page) });
+    const response = await fetch(`/api/group-account/transactions?${params.toString()}`, { headers: { Accept: "application/json" }, cache: "default" });
+    const payload = await readGroupAccountJson<GroupAccountTransactionsResponse | GroupAccountApiError>(response);
+    if (!response.ok) throw new Error(groupAccountErrorMessage(payload as GroupAccountApiError, "거래내역을 불러오지 못했습니다."));
+    const result = payload as GroupAccountTransactionsResponse;
+    while (groupAccountTransactionsCache.size >= GROUP_ACCOUNT_CLIENT_CACHE_MAX_ENTRIES) {
+      const oldest = groupAccountTransactionsCache.keys().next().value;
+      if (typeof oldest !== "string") break;
+      groupAccountTransactionsCache.delete(oldest);
+    }
+    groupAccountTransactionsCache.set(cacheKey, { value: result, expiresAt: Date.now() + GROUP_ACCOUNT_CLIENT_CACHE_TTL_MS });
+    return result;
+  })();
+
+  groupAccountTransactionsInFlight.set(cacheKey, request);
+  try {
+    return await request;
+  } finally {
+    if (groupAccountTransactionsInFlight.get(cacheKey) === request) groupAccountTransactionsInFlight.delete(cacheKey);
+  }
+};
+
 const refreshAnalytics = async (granularity: AnalyticsGranularity): Promise<AnalyticsRefreshResult> => {
   const now = Date.now();
   const cached = analyticsCache.get(granularity);
@@ -109,4 +196,6 @@ export const apiAdminAdapter: AdminAdapter = {
   ...mockAdminAdapter,
   getDashboardMetrics,
   refreshAnalytics,
+  getGroupAccountStatus,
+  getGroupAccountTransactions,
 };

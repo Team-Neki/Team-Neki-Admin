@@ -38,6 +38,7 @@ test("server-renders the Neki Admin operations shell and loading state", async (
   assert.doesNotMatch(html, /브랜드 지원 관리/);
   assert.doesNotMatch(html, /미지원 브랜드 관리/);
   assert.match(html, /포즈 관리/);
+  assert.match(html, /모임통장/);
   assert.match(html, /운영 데이터를 불러오고 있어요/);
   assert.doesNotMatch(html, /빠른 실행|운영 알림/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape|Building your site/);
@@ -98,6 +99,8 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(adminApp, /analytics: \{ title: "Amplitude 지표" \}/);
   assert.match(adminApp, /key: "analytics", label: "Amplitude 지표"/);
   assert.match(adminApp, /function AnalyticsScreen/);
+  assert.match(adminApp, /function GroupAccountScreen/);
+  assert.match(adminApp, /계좌 연결 정보가 없습니다/);
   assert.doesNotMatch(adminApp, /<span>\{record\.platform\} · \{record\.sourceFile\}<\/span>/);
   assert.match(adminApp, /<Title level=\{3\}>Amplitude 지표<\/Title>/);
   assert.doesNotMatch(adminApp, /GA4/);
@@ -112,6 +115,7 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(adapterEntry, /apiAdminAdapter/);
   assert.match(apiAdapter, /fetch\(`\/api\/amplitude\/metrics\?granularity=\$\{granularity\}`/);
   assert.match(apiAdapter, /fetch\(`\/api\/amplitude\/dashboard\?/);
+  assert.match(apiAdapter, /fetch\(`\/api\/group-account\/transactions\?/);
   assert.match(dashboardRoute, /\/api\/2\/users/);
   assert.match(dashboardRoute, /m: "active"/);
   assert.match(dashboardRoute, /m: "new"/);

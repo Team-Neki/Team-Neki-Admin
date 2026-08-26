@@ -11,6 +11,9 @@ import type {
   DashboardMetricsQuery,
   DashboardTrendPoint,
   AnalyticsRefreshResult,
+  GroupAccountQuery,
+  GroupAccountStatus,
+  GroupAccountTransactionsResponse,
   DictionaryDraft,
   DictionaryRecord,
   LoadMode,
@@ -348,6 +351,15 @@ export const mockAdminAdapter: AdminAdapter = {
 
   async refreshAnalytics(): Promise<AnalyticsRefreshResult> {
     throw new Error("Amplitude API 키를 설정한 뒤 다시 시도해 주세요.");
+  },
+
+  async getGroupAccountStatus(): Promise<GroupAccountStatus> {
+    return { state: "unconfigured", message: "계좌 연결 정보가 없습니다." };
+  },
+
+  async getGroupAccountTransactions(_query: GroupAccountQuery): Promise<GroupAccountTransactionsResponse> {
+    void _query;
+    return { items: [], page: 1, pageSize: 25, hasNextPage: false, fetchedAt: new Date().toISOString() };
   },
 };
 
