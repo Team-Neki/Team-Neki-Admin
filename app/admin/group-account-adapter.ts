@@ -65,7 +65,7 @@ function normalizeDirection(value: unknown): "in" | "out" {
 }
 
 function getDescription(transaction: ProviderTransaction): string {
-  for (const key of ["print_content", "tran_content", "description", "content"]) {
+  for (const key of ["print_content", "printed_content", "tran_content", "description", "content"]) {
     const text = asText(transaction[key]);
     if (text) return text;
   }
@@ -90,6 +90,6 @@ export function normalizeOpenBankingTransaction(
     description: getDescription(transaction),
     direction: normalizeDirection(transaction.inout_type),
     amount: parseAmount(transaction.tran_amt),
-    balanceAfter: parseBalance(transaction.balance_amt),
+    balanceAfter: parseBalance(transaction.after_balance_amt ?? transaction.balance_amt),
   };
 }

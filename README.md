@@ -28,7 +28,7 @@
 
 Amplitude 조회 키는 `.env.local` 또는 배포 환경의 `AMPLITUDE_API_KEY`, `AMPLITUDE_SECRET_KEY`로 설정합니다. EU 리전에 있는 프로젝트만 `AMPLITUDE_REGION=eu`로 지정합니다. 총 사용자 누적 기준일은 `AMPLITUDE_PROJECT_START_DATE`로 조정합니다.
 
-모임통장은 기본적으로 `연결 전` 상태이며, `GROUP_ACCOUNT_DATA_MODE=mock`을 명시한 개발 환경에서만 고정 목 데이터를 반환합니다. 실제 거래내역은 금융결제원 오픈뱅킹 이용기관 승인, 계좌 명의자 동의, 제공기관별 거래내역 API 권한과 서버 측 토큰 보관이 모두 준비된 뒤 `OPENBANKING_BASE_URL`, `OPENBANKING_ACCESS_TOKEN`, `OPENBANKING_FINTECH_USE_NUM`을 서버 환경에 설정해야 합니다. 토큰과 계좌 식별자는 브라우저나 `localStorage`에 저장하지 않습니다. 실제 토스 모임통장 지원 여부와 필드 계약은 이용기관·제공기관 확인 후 어댑터에 반영합니다.
+모임통장은 기본적으로 `연결 전` 상태이며, `GROUP_ACCOUNT_DATA_MODE=mock`을 명시한 개발 환경에서만 고정 목 데이터를 반환합니다. 실제 거래내역은 금융결제원 오픈뱅킹 이용기관 승인, 계좌 명의자 동의, 제공기관별 거래내역 API 권한과 서버 측 토큰 보관이 모두 준비된 뒤 `OPENBANKING_BASE_URL`, `OPENBANKING_ACCESS_TOKEN`, `OPENBANKING_FINTECH_USE_NUM`, `OPENBANKING_BANK_TRAN_ID`를 서버 환경에 설정해야 합니다. 토큰과 계좌 식별자는 브라우저나 `localStorage`에 저장하지 않습니다. 실제 토스 모임통장 지원 여부와 필드 계약은 이용기관·제공기관 확인 후 어댑터에 반영합니다.
 
 렌더 검증용으로 URL에 `state=empty` 또는 `state=error`를 추가하면 목록의 빈 화면과 조회 오류 상태를 재현할 수 있습니다.
 

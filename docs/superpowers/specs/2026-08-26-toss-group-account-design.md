@@ -74,7 +74,7 @@ type GroupAccountTransactionsResponse = {
 };
 ```
 
-실제 Open Banking의 페이지 크기와 커서/다음 페이지 값은 adapter에서 `page`와 `hasNextPage`로 변환한다. API 키 또는 동의 토큰이 없으면 route는 구성 오류를 503으로 반환한다.
+실제 Open Banking의 페이지 크기와 다음 페이지 값은 adapter에서 `page`와 `hasNextPage`로 변환한다. 거래내역조회 요청에는 제공기관이 발급한 핀테크이용번호와 이용기관 거래고유번호(`OPENBANKING_BANK_TRAN_ID`)가 필요하다. 다음 페이지용 조회 추적값은 현재 서버 프로세스의 제한된 메모리 캐시에만 보관하며, 다중 인스턴스 운영 전에는 공유 저장소로 교체해야 한다. API 키 또는 동의 토큰이 없으면 route는 구성 오류를 503으로 반환한다.
 
 ## 오류·보안
 

@@ -9,13 +9,16 @@ import type {
 type RuntimeEnv = Record<string, unknown>;
 
 const PAGE_SIZE = 25;
+const TRACE_CACHE_MAX_ENTRIES = 128;
 const OPEN_BANKING_TRANSACTION_PATH = "/v2.0/account/transaction_list/fin_num";
+const transactionTraceCache = new Map<string, string>();
 
 export type GroupAccountRuntime = {
   mode: "live" | "mock";
   baseUrl: string;
   accessToken: string;
   fintechUseNumber: string;
+  bankTranId: string;
 };
 
 export class GroupAccountProviderError extends Error {
@@ -46,6 +49,7 @@ export const getGroupAccountRuntime = async (): Promise<GroupAccountRuntime> => 
     baseUrl: read("OPENBANKING_BASE_URL").replace(/\/$/, ""),
     accessToken: read("OPENBANKING_ACCESS_TOKEN"),
     fintechUseNumber: read("OPENBANKING_FINTECH_USE_NUM"),
+    bankTranId: read("OPENBANKING_BANK_TRAN_ID"),
   };
 };
 
@@ -110,22 +114,51 @@ const providerResponseStatus = (payload: unknown): string | null => {
   return typeof value === "string" ? value : null;
 };
 
+const transactionTraceKey = (runtime: GroupAccountRuntime, query: GroupAccountQuery, page: number) =>
+  `${runtime.fintechUseNumber}:${query.from}:${query.to}:${query.direction}:${page}`;
+
 const loadLiveTransactions = async (
   query: GroupAccountQuery,
   runtime: GroupAccountRuntime,
 ): Promise<GroupAccountTransactionsResponse> => {
-  if (!runtime.baseUrl || !runtime.accessToken || !runtime.fintechUseNumber) {
+  if (!runtime.baseUrl || !runtime.accessToken || !runtime.fintechUseNumber || !runtime.bankTranId) {
     throw new GroupAccountProviderError(503, "계좌 연결 정보가 없습니다.");
   }
 
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now).reduce<Record<string, string>>((result, part) => {
+    result[part.type] = part.value;
+    return result;
+  }, {});
+  const tranDtime = `${parts.year}${parts.month}${parts.day}${parts.hour}${parts.minute}${parts.second}`;
+  const inquiryType = query.direction === "in" ? "I" : query.direction === "out" ? "O" : "A";
+  const previousTrace = query.page > 1
+    ? transactionTraceCache.get(transactionTraceKey(runtime, query, query.page))
+    : undefined;
+  if (query.page > 1 && !previousTrace) {
+    throw new GroupAccountProviderError(502, "다음 거래내역 페이지를 준비하지 못했습니다. 다시 조회해 주세요.");
+  }
   const params = new URLSearchParams({
+    bank_tran_id: runtime.bankTranId,
     fintech_use_num: runtime.fintechUseNumber,
-    inquiry_type: "A",
+    inquiry_type: inquiryType,
+    inquiry_base: "D",
     from_date: query.from.replaceAll("-", ""),
+    from_time: "000000",
     to_date: query.to.replaceAll("-", ""),
+    to_time: "235959",
     sort_order: "D",
-    page_index: String(query.page),
-    per_page: String(PAGE_SIZE),
+    tran_dtime: tranDtime,
+    ...(previousTrace ? { befor_inquiry_trace_info: previousTrace } : {}),
   });
   const url = new URL(`${OPEN_BANKING_TRANSACTION_PATH}?${params.toString()}`, runtime.baseUrl);
   let response: Response;
@@ -155,11 +188,22 @@ const loadLiveTransactions = async (
   const items = toProviderRows(payload)
     .map((row, index) => normalizeOpenBankingTransaction(row, index))
     .filter((item) => query.direction === "all" || item.direction === query.direction);
+  const responseBody = payload && typeof payload === "object" ? payload as Record<string, unknown> : {};
+  const nextTrace = typeof responseBody.befor_inquiry_trace_info === "string"
+    ? responseBody.befor_inquiry_trace_info
+    : null;
+  const nextPage = responseBody.next_page_yn === "Y";
+  if (nextPage && nextTrace) {
+    while (transactionTraceCache.size >= TRACE_CACHE_MAX_ENTRIES) {
+      transactionTraceCache.delete(transactionTraceCache.keys().next().value as string);
+    }
+    transactionTraceCache.set(transactionTraceKey(runtime, query, query.page + 1), nextTrace);
+  }
   return {
     items,
     page: query.page,
     pageSize: PAGE_SIZE,
-    hasNextPage: items.length === PAGE_SIZE,
+    hasNextPage: nextPage && Boolean(nextTrace),
     fetchedAt: new Date().toISOString(),
   };
 };
@@ -173,7 +217,7 @@ export const getGroupAccountStatus = async (): Promise<GroupAccountStatus> => {
       lastSyncedAt: new Date().toISOString(),
     };
   }
-  if (!runtime.baseUrl || !runtime.accessToken || !runtime.fintechUseNumber) {
+  if (!runtime.baseUrl || !runtime.accessToken || !runtime.fintechUseNumber || !runtime.bankTranId) {
     return { state: "unconfigured", message: "계좌 연결 정보가 없습니다." };
   }
   return { state: "connected", accountLabel: "토스 모임통장", lastSyncedAt: null };
