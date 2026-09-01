@@ -108,6 +108,9 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(analyticsScreen, /aria-label="페이지네이션"/);
   assert.match(analyticsScreen, /pagination=\{paginationEnabled \? \{ pageSize: 10,[\s\S]*\} : false\}/);
   assert.match(analyticsScreen, /DatePicker\.RangePicker[\s\S]*aria-label="지표 조회 기간"/);
+  assert.match(analyticsScreen, /그룹별 보기[\s\S]*ANALYTICS_GROUP_OPTIONS[\s\S]*aria-label="이벤트 그룹 필터"/);
+  assert.match(analyticsScreen, /const \[group, setGroup\] = useState<AnalyticsGroup>\("all"\)/);
+  assert.match(analyticsScreen, /event\.area === ANALYTICS_GROUP_AREAS\[group\]/);
   assert.match(analyticsScreen, /title: "기능 영역"[\s\S]*sorter: \(a, b\) => a\.area\.localeCompare/);
   assert.match(analyticsScreen, /title: "선택 기간 발생"[\s\S]*sorter: \(a, b\) => \(metricByName\.get\(a\.name\)\?\.total/);
   assert.match(analyticsScreen, /title: "고유 사용자"[\s\S]*sorter: \(a, b\) => \(metricByName\.get\(a\.name\)\?\.uniques/);

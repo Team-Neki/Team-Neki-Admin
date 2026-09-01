@@ -1308,7 +1308,18 @@ function StoreScreen({ stores, setStores, brands }: { stores: StoreRecord[]; set
   );
 }
 
-const ANALYTICS_AREAS = ["전체", "앱 공통", "아카이빙", "지도", "포즈", "마이페이지"] as const;
+type AnalyticsGroup = "all" | "archiving" | "map" | "pose";
+const ANALYTICS_GROUP_OPTIONS: Array<{ label: string; value: AnalyticsGroup }> = [
+  { label: "전체", value: "all" },
+  { label: "아카이빙", value: "archiving" },
+  { label: "맵", value: "map" },
+  { label: "포즈", value: "pose" },
+];
+const ANALYTICS_GROUP_AREAS: Record<Exclude<AnalyticsGroup, "all">, string> = {
+  archiving: "아카이빙",
+  map: "지도",
+  pose: "포즈",
+};
 const ANALYTICS_MIN_DATE = dayjs("2024-01-01");
 type AnalyticsDateRange = [Dayjs, Dayjs];
 const createDefaultAnalyticsRange = (): AnalyticsDateRange => {
@@ -1330,7 +1341,7 @@ const ANALYTICS_REFRESH_COOLDOWN_MS = 30_000;
 const analyticsGranularityLabel = (value: AnalyticsGranularity) => ANALYTICS_GRANULARITY_OPTIONS.find((option) => option.value === value)?.label ?? "일별";
 
 function AnalyticsScreen({ events, metrics, granularity, range, refreshing, cooldownRemaining, refreshError, onRefresh, onGranularityChange, onRangeChange }: { events: AnalyticsEventRecord[]; metrics?: AnalyticsRefreshResult; granularity: AnalyticsGranularity; range: AnalyticsDateRange; refreshing: boolean; cooldownRemaining: number; refreshError?: string; onRefresh: () => void; onGranularityChange: (value: AnalyticsGranularity) => void; onRangeChange: (value: AnalyticsDateRange) => void }) {
-  const [area, setArea] = useState<(typeof ANALYTICS_AREAS)[number]>("전체");
+  const [group, setGroup] = useState<AnalyticsGroup>("all");
   const [query, setQuery] = useState("");
   const [paginationEnabled, setPaginationEnabled] = useState(false);
   const [selected, setSelected] = useState<AnalyticsEventRecord>();
@@ -1338,11 +1349,11 @@ function AnalyticsScreen({ events, metrics, granularity, range, refreshing, cool
   const filtered = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase();
     return events.filter((event) => {
-      const matchesArea = area === "전체" || event.area === area;
+      const matchesGroup = group === "all" || event.area === ANALYTICS_GROUP_AREAS[group];
       const matchesQuery = !normalized || [event.name, event.screen, event.trigger, event.description].some((value) => value.toLocaleLowerCase().includes(normalized));
-      return matchesArea && matchesQuery;
+      return matchesGroup && matchesQuery;
     });
-  }, [area, events, query]);
+  }, [events, group, query]);
   const columns: TableProps<AnalyticsEventRecord>["columns"] = [
     { title: "이벤트명", dataIndex: "name", width: 220, render: (value, record) => <button type="button" className="table-primary-link" onClick={() => setSelected(record)}><strong>{value}</strong></button> },
     { title: "기능 영역", dataIndex: "area", width: 120, sorter: (a, b) => a.area.localeCompare(b.area, "ko"), sortDirections: ["ascend", "descend"], render: (value) => <Tag>{value}</Tag> },
@@ -1362,7 +1373,8 @@ function AnalyticsScreen({ events, metrics, granularity, range, refreshing, cool
       </Card>
       {refreshError && <Alert className="analytics-refresh-alert" type="warning" showIcon title={refreshError} />}
       <Card className="content-card table-card analytics-table-card">
-        <div className="toolbar analytics-toolbar"><DatePicker.RangePicker className="analytics-range-picker" value={range} allowClear={false} inputReadOnly minDate={ANALYTICS_MIN_DATE} maxDate={dayjs().startOf("day")} presets={ANALYTICS_RANGE_PRESETS} format="YYYY.MM.DD" onChange={(dates) => dates?.[0] && dates[1] && onRangeChange([dates[0].startOf("day"), dates[1].startOf("day")])} aria-label="지표 조회 기간" /><Segmented options={ANALYTICS_GRANULARITY_OPTIONS} value={granularity} disabled={refreshing} onChange={(value) => onGranularityChange(value as AnalyticsGranularity)} aria-label="지표 조회 단위" /><Select value={area} onChange={setArea} aria-label="이벤트 기능 영역 필터" options={ANALYTICS_AREAS.map((item) => ({ label: item, value: item }))} /><Input.Search value={query} onChange={(event) => setQuery(event.target.value)} allowClear placeholder="이벤트명·페이지·트리거 검색" aria-label="이벤트 검색" /></div>
+        <div className="analytics-group-bar"><Text strong>그룹별 보기</Text><Segmented className="analytics-group-segmented" options={ANALYTICS_GROUP_OPTIONS} value={group} onChange={(value) => setGroup(value as AnalyticsGroup)} aria-label="이벤트 그룹 필터" /></div>
+        <div className="toolbar analytics-toolbar"><DatePicker.RangePicker className="analytics-range-picker" value={range} allowClear={false} inputReadOnly minDate={ANALYTICS_MIN_DATE} maxDate={dayjs().startOf("day")} presets={ANALYTICS_RANGE_PRESETS} format="YYYY.MM.DD" onChange={(dates) => dates?.[0] && dates[1] && onRangeChange([dates[0].startOf("day"), dates[1].startOf("day")])} aria-label="지표 조회 기간" /><Segmented options={ANALYTICS_GRANULARITY_OPTIONS} value={granularity} disabled={refreshing} onChange={(value) => onGranularityChange(value as AnalyticsGranularity)} aria-label="지표 조회 단위" /><Input.Search value={query} onChange={(event) => setQuery(event.target.value)} allowClear placeholder="이벤트명·페이지·트리거 검색" aria-label="이벤트 검색" /></div>
         <div className="result-summary"><Text strong>{filtered.length}개 이벤트</Text><Space size={8}><Text type="secondary">페이지네이션</Text><Switch size="small" checked={paginationEnabled} onChange={setPaginationEnabled} checkedChildren="ON" unCheckedChildren="OFF" aria-label="페이지네이션" /></Space></div>
         {filtered.length ? <Table rowKey="id" columns={columns} dataSource={filtered} scroll={{ x: 1040 }} pagination={paginationEnabled ? { pageSize: 10, showSizeChanger: false, showTotal: (total) => `총 ${total}개` } : false} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="조건에 맞는 이벤트가 없습니다." />}
       </Card>
