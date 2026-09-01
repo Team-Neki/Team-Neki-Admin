@@ -15,7 +15,6 @@
 
 # next.js
 /.next/
-/.vinext/
 /out/
 
 # misc
@@ -38,7 +37,27 @@ yarn-error.log*
 # typescript
 next-env.d.ts
 *.tsbuildinfo
-/dist/
-/.wrangler/
+
+# local runtime data
+/.data/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# local tools and generated artifacts
+/.codex/
+/.lazyweb/
+/.product-design/
 /outputs/
 /work/
+
+# OpenAI Sites / Cloudflare integration is preserved only in the local history.
+/.openai/
+/.vinext/
+/.wrangler/
+/dist/
+/build/sites-vite-plugin.ts
+/vite.config.ts
+/worker/
+/worker-configuration.d.ts
+/examples/d1/

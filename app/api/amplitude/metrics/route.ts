@@ -1,4 +1,4 @@
-import { getD1 } from "../../../../db";
+import { getDatabase, type AnalyticsDatabase } from "../../../../db";
 import { cachedAmplitudeRequest, getAmplitudeAuth, getAmplitudeBaseUrl, getAmplitudeRuntime } from "../amplitude-client";
 import {
   ANALYTICS_LIVE_CACHE_TTL_MS,
@@ -165,7 +165,7 @@ const splitDailyWindows = (windows: AnalyticsDateWindow[]) => windows.flatMap((w
   return chunks;
 });
 
-const readDailyStatuses = async (db: D1Database, startDate: string, endDate: string) => {
+const readDailyStatuses = async (db: AnalyticsDatabase, startDate: string, endDate: string) => {
   const result = await db.prepare(`
     SELECT metric_date, finalized, fetched_at
     FROM analytics_daily_statuses
@@ -179,7 +179,7 @@ const readDailyStatuses = async (db: D1Database, startDate: string, endDate: str
   } satisfies AnalyticsDailyStatus]));
 };
 
-const readRangeSnapshot = async (db: D1Database, cacheKey: string): Promise<RangeSnapshot | undefined> => {
+const readRangeSnapshot = async (db: AnalyticsDatabase, cacheKey: string): Promise<RangeSnapshot | undefined> => {
   const row = await db.prepare(`
     SELECT cache_key, event_uniques_json, active_users_json, finalized, fetched_at
     FROM analytics_range_snapshots
@@ -199,7 +199,7 @@ const readRangeSnapshot = async (db: D1Database, cacheKey: string): Promise<Rang
   }
 };
 
-const readAggregatedEvents = async (db: D1Database, startDate: string, endDate: string) => {
+const readAggregatedEvents = async (db: AnalyticsDatabase, startDate: string, endDate: string) => {
   const result = await db.prepare(`
     SELECT event_name, SUM(total) AS total
     FROM analytics_daily_event_metrics
@@ -209,7 +209,7 @@ const readAggregatedEvents = async (db: D1Database, startDate: string, endDate: 
   return new Map((result.results ?? []).map((row) => [row.event_name, Number(row.total ?? 0)]));
 };
 
-const writeDailyMetrics = async (db: D1Database, dates: string[], rows: DailyMetricRow[], fetchedAt: string, today: string) => {
+const writeDailyMetrics = async (db: AnalyticsDatabase, dates: string[], rows: DailyMetricRow[], fetchedAt: string, today: string) => {
   const rowsByDate = new Map<string, DailyMetricRow[]>();
   rows.forEach((row) => rowsByDate.set(row.date, [...(rowsByDate.get(row.date) ?? []), row]));
   for (const date of dates) {
@@ -232,7 +232,7 @@ const writeDailyMetrics = async (db: D1Database, dates: string[], rows: DailyMet
   }
 };
 
-const writeRangeSnapshot = async (db: D1Database, snapshot: RangeSnapshot, startDate: string, endDate: string, granularity: AnalyticsGranularity) => {
+const writeRangeSnapshot = async (db: AnalyticsDatabase, snapshot: RangeSnapshot, startDate: string, endDate: string, granularity: AnalyticsGranularity) => {
   await db.prepare(`
     INSERT INTO analytics_range_snapshots (
       cache_key, start_date, end_date, granularity, event_uniques_json, active_users_json, finalized, fetched_at
@@ -310,7 +310,7 @@ const collectMetrics = async (request: Request): Promise<AnalyticsMetricsRespons
   const { startDate, endDate } = normalizeAnalyticsRange(params.get("startDate"), params.get("endDate"), today);
   const forceLiveRefresh = params.get("refresh") === "1";
   const rangeKey = analyticsRangeCacheKey(startDate, endDate, granularity);
-  const db = await getD1();
+  const db = await getDatabase();
   const statuses = await readDailyStatuses(db, startDate, endDate);
   const requestedDates = listAnalyticsDates(startDate, endDate);
   const datesToRefresh = requestedDates.filter((date) => !isAnalyticsStatusReusable(statuses.get(date), date, today, now, forceLiveRefresh));

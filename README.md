@@ -26,7 +26,7 @@
 
 운영 CRUD와 포즈 업로드는 `app/admin/mock-admin-data.ts`의 시드 데이터와 메모리 기반 adapter를 사용합니다. 대시보드와 지표 화면의 새로고침은 서버 API route를 통해 Amplitude 데이터를 조회하며, API 키가 없으면 설정 안내 상태를 표시합니다. DAU·WAU·MAU는 Amplitude 활성 사용자 집계, 총 사용자는 `AMPLITUDE_PROJECT_START_DATE`부터의 신규 사용자 누적을 사용합니다. 이 값은 Neki 가입자 원장과 다를 수 있습니다. 포즈 업로드는 브라우저 메모리에만 저장되어 새로고침하면 초기화됩니다.
 
-Amplitude 조회 키는 `.env.local` 또는 배포 환경의 `AMPLITUDE_API_KEY`, `AMPLITUDE_SECRET_KEY`로 설정합니다. EU 리전에 있는 프로젝트만 `AMPLITUDE_REGION=eu`로 지정합니다. 총 사용자 누적 기준일은 `AMPLITUDE_PROJECT_START_DATE`로 조정합니다.
+Amplitude 조회 키는 `.env.local` 또는 배포 환경의 `AMPLITUDE_API_KEY`, `AMPLITUDE_SECRET_KEY`로 설정합니다. EU 리전에 있는 프로젝트만 `AMPLITUDE_REGION=eu`로 지정합니다. 총 사용자 누적 기준일은 `AMPLITUDE_PROJECT_START_DATE`로 조정합니다. 일별 수집 결과는 기본적으로 `.data/neki-admin.sqlite`에 저장되며, `NEKI_ADMIN_DATABASE_PATH`로 위치를 바꿀 수 있습니다.
 
 모임통장은 기본적으로 `연결 전` 상태이며, `GROUP_ACCOUNT_DATA_MODE=mock`을 명시한 개발 환경에서만 고정 목 데이터를 반환합니다. 실제 거래내역은 금융결제원 오픈뱅킹 이용기관 승인, 계좌 명의자 동의, 제공기관별 거래내역 API 권한과 서버 측 토큰 보관이 모두 준비된 뒤 `OPENBANKING_BASE_URL`, `OPENBANKING_ACCESS_TOKEN`, `OPENBANKING_FINTECH_USE_NUM`, `OPENBANKING_BANK_TRAN_ID`를 서버 환경에 설정해야 합니다. 토큰과 계좌 식별자는 브라우저나 `localStorage`에 저장하지 않습니다. 실제 토스 모임통장 지원 여부와 필드 계약은 이용기관·제공기관 확인 후 어댑터에 반영합니다.
 
@@ -43,6 +43,26 @@ npm run dev
 
 기본 개발 주소는 `http://localhost:3000`입니다.
 
+## 서버 호스팅
+
+단일 Node.js 서버에서는 아래 명령으로 실행합니다.
+
+```bash
+npm ci
+npm run build
+npm start
+```
+
+`next.config.ts`는 `standalone` 출력을 생성합니다. Docker로 실행할 때는 SQLite 파일이 유지되도록 `/app/.data`를 영구 볼륨에 연결합니다.
+
+```bash
+docker build -t neki-admin .
+docker run --env-file .env.local -p 3000:3000 \
+  -v neki-admin-data:/app/.data neki-admin
+```
+
+운영에서는 Next.js 프로세스 앞에 TLS와 요청 제한을 담당하는 Nginx 등의 리버스 프록시를 둡니다. 현재 SQLite 저장소는 영구 디스크를 사용하는 단일 인스턴스 기준입니다. 여러 인스턴스로 확장할 때는 공유 데이터베이스 adapter로 교체해야 합니다.
+
 ## 검증
 
 ```bash
@@ -51,26 +71,6 @@ npm test
 npm run lint
 ```
 
-## Sprint MCP (Codex)
-
-이 저장소에는 Codex 프로젝트 범위의 Sprint MCP 설정이 포함돼 있습니다. 먼저 Sprint의
-**프로필 → API 토큰**에서 개인 토큰을 발급한 뒤, 커밋되지 않는 `.env.local`에 저장합니다.
-
-```bash
-cp .env.local.example .env.local
-# .env.local의 SPRINT_API_TOKEN을 실제 sprint_pat_... 값으로 교체
-```
-
-그다음 이 프로젝트를 신뢰하고 Codex를 재시작하면 `sprint` MCP 서버가 로드됩니다.
-요청 범위인 티켓 4개, 위키 4개, 조회 보조 3개 도구만 허용했습니다. npm 패키지에 추가로
-포함된 에픽·프로젝트·스프린트·댓글 도구는 노출하지 않으며, `delete_ticket`과
-`delete_epic`도 프로젝트 설정에서 명시적으로 차단했습니다.
-
-- 설정: `.codex/config.toml`
-- 실행 패키지: `@neki-team/sprint-mcp@0.2.0`
-- API: `https://sprint.suitestudy.com:4641`
-- 토큰은 `.env.local` 또는 실행 환경의 `SPRINT_API_TOKEN`에서만 읽습니다.
-
 ## 주요 파일
 
 - `app/page.tsx`: 어드민 애플리케이션 진입점
@@ -78,6 +78,7 @@ cp .env.local.example .env.local
 - `app/admin/admin-adapter.ts`: mock/API 구현체를 선택하는 단일 조립 지점
 - `app/admin/api-admin-adapter.ts`: 지표·모임통장 조회 API와 기존 목 adapter를 조합하는 구현체
 - `app/api/amplitude/metrics/route.ts`: 서버에서 Amplitude 이벤트·활성 사용자 API를 호출하는 route
+- `db/index.ts`: Cloudflare D1 또는 self-hosted Node SQLite를 선택하는 지표 저장 adapter
 - `app/api/amplitude/dashboard/route.ts`: 서버에서 DAU·WAU·MAU·신규 사용자 누적 API를 호출하는 route
 - `app/api/group-account/group-account-server.ts`: 오픈뱅킹 거래내역 어댑터·정규화·목 모드 경계
 - `app/api/group-account/status/route.ts`: 모임통장 연결 상태 route
@@ -90,3 +91,4 @@ cp .env.local.example .env.local
 - `app/layout.tsx`: 문서 메타데이터와 공유 미리보기 설정
 - `design-qa.md`: 원본과 구현 렌더를 함께 비교한 시각 QA 결과
 - `docs/superpowers/specs/2026-08-01-admin-frontend-foundation-design.md`: 프론트엔드 기반 설계
+- `Dockerfile`: Next.js standalone 서버 이미지

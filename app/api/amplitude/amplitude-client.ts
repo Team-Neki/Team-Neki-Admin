@@ -22,7 +22,7 @@ let runtimePromise: Promise<Record<string, string>> | undefined;
 const readRuntimeEnv = async () => {
   let runtime: RuntimeEnv = {};
   try {
-    const workerModule = await import("cloudflare:workers");
+    const workerModule = await import(String("cloudflare:workers"));
     runtime = workerModule.env as unknown as RuntimeEnv;
   } catch {
     // Node 기반 테스트/로컬 렌더링에는 Cloudflare runtime이 없습니다.

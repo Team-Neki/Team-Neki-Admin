@@ -30,7 +30,7 @@ export class GroupAccountProviderError extends Error {
 
 const readRuntimeEnv = async (): Promise<RuntimeEnv> => {
   try {
-    const workerModule = await import("cloudflare:workers");
+    const workerModule = await import(String("cloudflare:workers"));
     return workerModule.env as unknown as RuntimeEnv;
   } catch {
     return {};

@@ -1,29 +1,18 @@
 import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import test from "node:test";
+import { startTestServer } from "./server-test-helper.mjs";
 
 const templateRoot = new URL("../", import.meta.url);
+let testServer;
 
-async function render() {
-  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
-  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
-  const { default: worker } = await import(workerUrl.href);
+test.before(async () => {
+  testServer = await startTestServer();
+});
 
-  return worker.fetch(
-    new Request("http://localhost/", {
-      headers: { accept: "text/html" },
-    }),
-    {
-      ASSETS: {
-        fetch: async () => new Response("Not found", { status: 404 }),
-      },
-    },
-    {
-      waitUntil() {},
-      passThroughOnException() {},
-    },
-  );
-}
+test.after(async () => testServer?.stop());
+
+const render = () => fetch(testServer.baseUrl, { headers: { accept: "text/html" } });
 
 test("server-renders the Neki Admin operations shell and loading state", async () => {
   const response = await render();
@@ -45,7 +34,7 @@ test("server-renders the Neki Admin operations shell and loading state", async (
 });
 
 test("keeps the Neki design foundation and API adapter boundary explicit", async () => {
-  const [page, adminApp, adapterEntry, apiAdapter, amplitudeRoute, dashboardRoute, amplitudeClient, mockAdapter, mockData, types, css, layout, packageJson, mockAnalytics, dbSchema, hostingConfig, cachePolicy, analyticsMigration] = await Promise.all([
+  const [page, adminApp, adapterEntry, apiAdapter, amplitudeRoute, dashboardRoute, amplitudeClient, mockAdapter, mockData, types, css, layout, packageJson, mockAnalytics, dbSchema, databaseAdapter, nextConfig, dockerfile, cachePolicy, analyticsMigration] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/AdminApp.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/admin-adapter.ts", import.meta.url), "utf8"),
@@ -61,7 +50,9 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
     readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/mock-analytics-events.ts", import.meta.url), "utf8"),
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
-    readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
+    readFile(new URL("../db/index.ts", import.meta.url), "utf8"),
+    readFile(new URL("../next.config.ts", import.meta.url), "utf8"),
+    readFile(new URL("../Dockerfile", import.meta.url), "utf8"),
     readFile(new URL("../app/api/amplitude/metrics/analytics-cache-policy.ts", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0000_living_gwen_stacy.sql", import.meta.url), "utf8"),
   ]);
@@ -179,7 +170,10 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(dbSchema, /analyticsDailyEventMetrics/);
   assert.match(dbSchema, /analyticsDailyStatuses/);
   assert.match(dbSchema, /analyticsRangeSnapshots/);
-  assert.match(hostingConfig, /"d1": "DB"/);
+  assert.match(databaseAdapter, /node:sqlite/);
+  assert.match(databaseAdapter, /NEKI_ADMIN_DATABASE_PATH/);
+  assert.match(nextConfig, /output: "standalone"/);
+  assert.match(dockerfile, /\.next\/standalone/);
   assert.match(analyticsMigration, /CREATE TABLE `analytics_daily_event_metrics`/);
   assert.match(analyticsMigration, /CREATE TABLE `analytics_range_snapshots`/);
   assert.match(adminApp, /function QrParsingScreen/);

@@ -9,7 +9,7 @@
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
-    "types": ["node", "@cloudflare/workers-types"],
+    "types": ["node"],
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
@@ -31,5 +31,15 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    ".openai",
+    ".product-design",
+    ".lazyweb",
+    "build/sites-vite-plugin.ts",
+    "vite.config.ts",
+    "worker",
+    "worker-configuration.d.ts",
+    "examples/d1"
+  ]
 }
