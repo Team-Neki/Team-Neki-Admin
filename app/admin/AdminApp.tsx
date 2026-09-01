@@ -43,6 +43,8 @@ import ArrowLeftOutlined from "@ant-design/icons/ArrowLeftOutlined";
 import dayjs, { type Dayjs } from "dayjs";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { adminAdapter } from "./admin-adapter";
+import { AnalyticsScreen, useAnalyticsMetrics } from "./features/analytics";
+import { AdminPageHeader } from "./shared/ui/AdminPageHeader";
 import type {
   AddressSuggestion,
   AdminSnapshot,
@@ -63,10 +65,6 @@ import type {
   PoseRecord,
   StoreDraft,
   StoreRecord,
-  AnalyticsEventRecord,
-  AnalyticsEventMetric,
-  AnalyticsGranularity,
-  AnalyticsRefreshResult,
   QrParsingRule,
   GroupAccountDirection,
   GroupAccountStatus,
@@ -146,16 +144,6 @@ type BrandMapFilter = "visible" | "hidden";
 
 function BrandBooleanMark({ value, yesLabel, noLabel }: { value: boolean; yesLabel: string; noLabel: string }) {
   return <span className={`brand-boolean-mark ${value ? "is-yes" : "is-no"}`} aria-label={value ? yesLabel : noLabel}>{value ? "O" : "X"}</span>;
-}
-
-function PageHeader({ view, action }: { view: ViewKey; action?: React.ReactNode }) {
-  const meta = VIEW_META[view];
-  return (
-    <section className="page-heading">
-      <Title level={1}>{meta.title}</Title>
-      {action}
-    </section>
-  );
 }
 
 function LoadingPanel({ label }: { label: string }) {
@@ -398,7 +386,7 @@ function OverviewScreen({ mode }: { mode: LoadMode }) {
 
   return (
     <>
-      <PageHeader view="dashboard" />
+      <AdminPageHeader title={VIEW_META.dashboard.title} />
 
       <Card className="content-card dashboard-date-card" size="small">
         <div className="dashboard-date-toolbar">
@@ -1027,8 +1015,8 @@ function NotificationScreen(props: NotificationScreenProps) {
 
   return (
     <>
-      <PageHeader
-        view="notifications"
+      <AdminPageHeader
+        title={VIEW_META.notifications.title}
         action={tab === "compose" ? undefined : <Button type="primary" onClick={() => setTab("compose")}>새 알림 작성</Button>}
       />
       <Tabs activeKey={tab} onChange={(key) => setTab(key as NotificationTabKey)} className="page-tabs" items={[
@@ -1268,7 +1256,7 @@ function StoreScreen({ stores, setStores, brands }: { stores: StoreRecord[]; set
 
   return (
     <>
-      <PageHeader view="stores" action={closeMode
+      <AdminPageHeader title={VIEW_META.stores.title} action={closeMode
         ? <Button className="close-mode-exit" disabled={closing} onClick={exitCloseMode}>선택 모드 종료</Button>
         : <Space className="page-heading-actions" wrap><Button danger disabled={activeStoreCount === 0} onClick={enterCloseMode}>폐점하기</Button><Button type="primary" onClick={() => setEditor("new")}>신규 부스 등록</Button></Space>} />
       {highlighted && <Alert className="success-banner" type="success" showIcon closable={{ onClose: () => setHighlighted(undefined) }} title="변경한 부스를 목록에 반영했습니다." />}
@@ -1308,93 +1296,6 @@ function StoreScreen({ stores, setStores, brands }: { stores: StoreRecord[]; set
   );
 }
 
-type AnalyticsGroup = "all" | "archiving" | "map" | "pose";
-const ANALYTICS_GROUP_OPTIONS: Array<{ label: string; value: AnalyticsGroup }> = [
-  { label: "전체", value: "all" },
-  { label: "아카이빙", value: "archiving" },
-  { label: "맵", value: "map" },
-  { label: "포즈", value: "pose" },
-];
-const ANALYTICS_GROUP_AREAS: Record<Exclude<AnalyticsGroup, "all">, string> = {
-  archiving: "아카이빙",
-  map: "지도",
-  pose: "포즈",
-};
-const ANALYTICS_MIN_DATE = dayjs("2024-01-01");
-type AnalyticsDateRange = [Dayjs, Dayjs];
-const createDefaultAnalyticsRange = (): AnalyticsDateRange => {
-  const today = dayjs().startOf("day");
-  return [today.subtract(29, "day"), today];
-};
-const ANALYTICS_RANGE_PRESETS = [
-  { label: "오늘", value: [dayjs().startOf("day"), dayjs().startOf("day")] as AnalyticsDateRange },
-  { label: "최근 7일", value: [dayjs().subtract(6, "day").startOf("day"), dayjs().startOf("day")] as AnalyticsDateRange },
-  { label: "최근 30일", value: createDefaultAnalyticsRange() },
-  { label: "이번 달", value: [dayjs().startOf("month"), dayjs().startOf("day")] as AnalyticsDateRange },
-];
-const ANALYTICS_GRANULARITY_OPTIONS: Array<{ label: string; value: AnalyticsGranularity }> = [
-  { label: "일별", value: "day" },
-  { label: "주별", value: "week" },
-  { label: "월별", value: "month" },
-];
-const ANALYTICS_REFRESH_COOLDOWN_MS = 30_000;
-const analyticsGranularityLabel = (value: AnalyticsGranularity) => ANALYTICS_GRANULARITY_OPTIONS.find((option) => option.value === value)?.label ?? "일별";
-
-function AnalyticsScreen({ events, metrics, granularity, range, refreshing, cooldownRemaining, refreshError, onRefresh, onGranularityChange, onRangeChange }: { events: AnalyticsEventRecord[]; metrics?: AnalyticsRefreshResult; granularity: AnalyticsGranularity; range: AnalyticsDateRange; refreshing: boolean; cooldownRemaining: number; refreshError?: string; onRefresh: () => void; onGranularityChange: (value: AnalyticsGranularity) => void; onRangeChange: (value: AnalyticsDateRange) => void }) {
-  const [group, setGroup] = useState<AnalyticsGroup>("all");
-  const [query, setQuery] = useState("");
-  const [paginationEnabled, setPaginationEnabled] = useState(false);
-  const [selected, setSelected] = useState<AnalyticsEventRecord>();
-  const metricByName = useMemo(() => new Map((metrics?.events ?? []).map((metric) => [metric.name, metric])), [metrics]);
-  const filtered = useMemo(() => {
-    const normalized = query.trim().toLocaleLowerCase();
-    return events.filter((event) => {
-      const matchesGroup = group === "all" || event.area === ANALYTICS_GROUP_AREAS[group];
-      const matchesQuery = !normalized || [event.name, event.screen, event.trigger, event.description].some((value) => value.toLocaleLowerCase().includes(normalized));
-      return matchesGroup && matchesQuery;
-    });
-  }, [events, group, query]);
-  const columns: TableProps<AnalyticsEventRecord>["columns"] = [
-    { title: "이벤트명", dataIndex: "name", width: 220, render: (value, record) => <button type="button" className="table-primary-link" onClick={() => setSelected(record)}><strong>{value}</strong></button> },
-    { title: "기능 영역", dataIndex: "area", width: 120, sorter: (a, b) => a.area.localeCompare(b.area, "ko"), sortDirections: ["ascend", "descend"], render: (value) => <Tag>{value}</Tag> },
-    { title: "페이지·기능", dataIndex: "screen", width: 150 },
-    { title: "선택 기간 발생", width: 140, sorter: (a, b) => (metricByName.get(a.name)?.total ?? 0) - (metricByName.get(b.name)?.total ?? 0), sortDirections: ["descend", "ascend"], render: (_, record) => formatAnalyticsMetric(metricByName.get(record.name), "total") },
-    { title: "고유 사용자", width: 130, sorter: (a, b) => (metricByName.get(a.name)?.uniques ?? 0) - (metricByName.get(b.name)?.uniques ?? 0), sortDirections: ["descend", "ascend"], render: (_, record) => formatAnalyticsMetric(metricByName.get(record.name), "uniques") },
-    { title: "파라미터", width: 210, render: (_, record) => record.parameters.length ? <Space size={[4, 4]} wrap>{record.parameters.map((parameter) => <Tag key={parameter.name} color="blue">{parameter.name}{parameter.optional ? " · 선택" : ""}</Tag>)}</Space> : <Text type="secondary">없음</Text> },
-    { title: "트리거 시점", dataIndex: "trigger", width: 320, ellipsis: true },
-  ];
-
-  return (
-    <>
-      <PageHeader view="analytics" action={<Button icon={<ReloadOutlined />} disabled={refreshing || cooldownRemaining > 0} loading={refreshing} onClick={onRefresh}>{cooldownRemaining > 0 ? `${cooldownRemaining}초 후 새로고침` : "새로고침"}</Button>} />
-      <Card className="content-card analytics-intro-card">
-        <div className="analytics-intro-copy"><Tag color="blue">Amplitude</Tag><Title level={3}>Amplitude 지표</Title></div>
-        <div className="analytics-summary-grid"><div><strong>{events.length}개</strong><span>정의된 이벤트</span></div><div><strong>{new Set(events.map((event) => event.area)).size}개</strong><span>기능 영역</span></div><div><strong>{formatAnalyticsActiveUsers(metrics)}</strong><span>{metrics ? `${analyticsGranularityLabel(metrics.granularity)} 활성 사용자` : "활성 사용자"}</span></div><div><strong>{metrics ? formatSchedule(metrics.fetchedAt) : "—"}</strong><span>최근 수집</span></div></div>
-      </Card>
-      {refreshError && <Alert className="analytics-refresh-alert" type="warning" showIcon title={refreshError} />}
-      <Card className="content-card table-card analytics-table-card">
-        <div className="analytics-group-bar"><Text strong>그룹별 보기</Text><Segmented className="analytics-group-segmented" options={ANALYTICS_GROUP_OPTIONS} value={group} onChange={(value) => setGroup(value as AnalyticsGroup)} aria-label="이벤트 그룹 필터" /></div>
-        <div className="toolbar analytics-toolbar"><DatePicker.RangePicker className="analytics-range-picker" value={range} allowClear={false} inputReadOnly minDate={ANALYTICS_MIN_DATE} maxDate={dayjs().startOf("day")} presets={ANALYTICS_RANGE_PRESETS} format="YYYY.MM.DD" onChange={(dates) => dates?.[0] && dates[1] && onRangeChange([dates[0].startOf("day"), dates[1].startOf("day")])} aria-label="지표 조회 기간" /><Segmented options={ANALYTICS_GRANULARITY_OPTIONS} value={granularity} disabled={refreshing} onChange={(value) => onGranularityChange(value as AnalyticsGranularity)} aria-label="지표 조회 단위" /><Input.Search value={query} onChange={(event) => setQuery(event.target.value)} allowClear placeholder="이벤트명·페이지·트리거 검색" aria-label="이벤트 검색" /></div>
-        <div className="result-summary"><Text strong>{filtered.length}개 이벤트</Text><Space size={8}><Text type="secondary">페이지네이션</Text><Switch size="small" checked={paginationEnabled} onChange={setPaginationEnabled} checkedChildren="ON" unCheckedChildren="OFF" aria-label="페이지네이션" /></Space></div>
-        {filtered.length ? <Table rowKey="id" columns={columns} dataSource={filtered} scroll={{ x: 1040 }} pagination={paginationEnabled ? { pageSize: 10, showSizeChanger: false, showTotal: (total) => `총 ${total}개` } : false} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="조건에 맞는 이벤트가 없습니다." />}
-      </Card>
-      <Modal open={Boolean(selected)} title={selected?.name} width={700} footer={<Button onClick={() => setSelected(undefined)}>닫기</Button>} onCancel={() => setSelected(undefined)}>
-        {selected && <div className="analytics-detail"><Descriptions bordered column={1} size="small"><Descriptions.Item label="기능 영역">{selected.area}</Descriptions.Item><Descriptions.Item label="페이지·기능">{selected.screen}</Descriptions.Item><Descriptions.Item label="플랫폼"><Tag color="blue">{selected.platform}</Tag></Descriptions.Item><Descriptions.Item label="트리거">{selected.trigger}</Descriptions.Item><Descriptions.Item label="설명">{selected.description}</Descriptions.Item><Descriptions.Item label="코드 근거">{selected.sourceFile}</Descriptions.Item></Descriptions><Title level={5}>파라미터</Title>{selected.parameters.length ? <Table size="small" pagination={false} rowKey="name" columns={[{ title: "이름", dataIndex: "name", width: 170 }, { title: "허용 값", dataIndex: "values", width: 180, render: (value) => value || "—" }, { title: "설명", dataIndex: "description" }]} dataSource={selected.parameters} /> : <Text type="secondary">전송 파라미터 없음</Text>}</div>}
-      </Modal>
-    </>
-  );
-}
-
-const formatAnalyticsMetric = (metric: AnalyticsEventMetric | undefined, key: "total" | "uniques") => {
-  const value = metric?.[key];
-  return typeof value === "number" ? value.toLocaleString("ko-KR") : "—";
-};
-
-const formatAnalyticsActiveUsers = (metrics?: AnalyticsRefreshResult) => {
-  const value = metrics?.activeUsers.at(-1)?.value;
-  return typeof value === "number" ? `${value.toLocaleString("ko-KR")}명` : "—";
-};
-
 function QrParsingScreen({ onBack }: { onBack: () => void }) {
   const [platform, setPlatform] = useState<"Android" | "iOS">("Android");
   const rules = mockQrParsingRules.filter((rule) => rule.platform === platform);
@@ -1408,7 +1309,7 @@ function QrParsingScreen({ onBack }: { onBack: () => void }) {
   ];
   return (
     <>
-      <PageHeader view="qr-parsing" action={<Button icon={<ArrowLeftOutlined />} onClick={onBack}>브랜드 관리로</Button>} />
+      <AdminPageHeader title={VIEW_META["qr-parsing"].title} action={<Button icon={<ArrowLeftOutlined />} onClick={onBack}>브랜드 관리로</Button>} />
       <Alert className="qr-parsing-note" type="info" showIcon title="브랜드별 QR 파싱·이미지 식별 규칙" description="앱 레포의 현재 구현을 기준으로 정리한 조회 화면입니다. Android는 WebView 진입 즉시 감지와 다운로드 선행 감지를 구분하고, iOS는 확인된 파싱 전략을 표시합니다." />
       <Card className="content-card qr-parsing-card">
         <Tabs activeKey={platform} onChange={(key) => setPlatform(key as "Android" | "iOS")} items={[{ key: "Android", label: "Android 파싱 로직" }, { key: "iOS", label: "iOS 파싱 로직" }]} />
@@ -1534,7 +1435,7 @@ function BrandScreen({ brands, dictionaries, setBrands, onOpenQrParsing }: { bra
 
   return (
     <>
-      <PageHeader view="brands" action={<Space className="page-heading-actions" wrap><Button icon={<CodeOutlined />} onClick={onOpenQrParsing}>QR 파싱 로직</Button><Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>브랜드 추가</Button></Space>} />
+      <AdminPageHeader title={VIEW_META.brands.title} action={<Space className="page-heading-actions" wrap><Button icon={<CodeOutlined />} onClick={onOpenQrParsing}>QR 파싱 로직</Button><Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>브랜드 추가</Button></Space>} />
       {highlighted && <Alert className="success-banner" type="success" showIcon closable={{ onClose: () => setHighlighted(undefined) }} title="변경한 브랜드를 목록에 반영했습니다." />}
       <Card className="content-card brand-filter-card">
         <div className="brand-filter-heading">
@@ -1640,7 +1541,7 @@ function DictionaryScreen({ dictionaries, setDictionaries }: { dictionaries: Dic
 
   return (
     <>
-      <PageHeader view="dictionary" action={<Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>사전 항목 추가</Button>} />
+      <AdminPageHeader title={VIEW_META.dictionary.title} action={<Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>사전 항목 추가</Button>} />
       {highlighted && <Alert className="success-banner" type="success" showIcon closable={{ onClose: () => setHighlighted(undefined) }} title="변경한 사전 항목을 목록에 반영했습니다." />}
       <Card className="content-card table-card">
         <div className="brand-search-bar"><Input.Search value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="원 단어 또는 허용 단어 검색" allowClear aria-label="사전 검색" /></div>
@@ -1749,8 +1650,8 @@ function PoseScreen({ poses, setPoses }: PoseScreenProps) {
 
   return (
     <>
-      <PageHeader
-        view="poses"
+      <AdminPageHeader
+        title={VIEW_META.poses.title}
         action={<Button type="primary" onClick={() => setUploadOpen(true)}>포즈 업로드</Button>}
       />
 
@@ -1972,7 +1873,7 @@ function GroupAccountScreen() {
   if (statusError) {
     return (
       <>
-        <PageHeader view="group-account" action={<Button icon={<ReloadOutlined />} onClick={() => void loadStatus()}>새로고침</Button>} />
+        <AdminPageHeader title={VIEW_META["group-account"].title} action={<Button icon={<ReloadOutlined />} onClick={() => void loadStatus()}>새로고침</Button>} />
         <Card className="state-card"><Result status="error" title="계좌 연결 상태를 확인하지 못했습니다" extra={<Button type="primary" onClick={() => void loadStatus()}>다시 시도</Button>} /></Card>
       </>
     );
@@ -1980,7 +1881,7 @@ function GroupAccountScreen() {
   if (!status || status.state === "unconfigured") {
     return (
       <>
-        <PageHeader view="group-account" action={<Button icon={<ReloadOutlined />} onClick={() => void loadStatus()}>새로고침</Button>} />
+        <AdminPageHeader title={VIEW_META["group-account"].title} action={<Button icon={<ReloadOutlined />} onClick={() => void loadStatus()}>새로고침</Button>} />
         <Card className="content-card group-account-status-card">
           <Tag color="default">연결 전</Tag>
           <Title level={3}>계좌 연결 정보가 없습니다.</Title>
@@ -1999,7 +1900,7 @@ function GroupAccountScreen() {
 
   return (
     <>
-      <PageHeader view="group-account" action={<Button icon={<ReloadOutlined />} loading={transactionsLoading || statusLoading} onClick={() => void loadTransactions()}>새로고침</Button>} />
+      <AdminPageHeader title={VIEW_META["group-account"].title} action={<Button icon={<ReloadOutlined />} loading={transactionsLoading || statusLoading} onClick={() => void loadTransactions()}>새로고침</Button>} />
       <Card className="content-card group-account-toolbar-card">
         <div className="group-account-account-row">
           <Space size={8}><Tag color={mockMode ? "gold" : "green"}>{mockMode ? "목 데이터" : "연결됨"}</Tag><Text strong>{status.accountLabel}</Text></Space>
@@ -2048,16 +1949,7 @@ function AdminWorkspace() {
   const [loadMode, setLoadMode] = useState<LoadMode>("success");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [analyticsMetrics, setAnalyticsMetrics] = useState<AnalyticsRefreshResult>();
-  const [analyticsGranularity, setAnalyticsGranularity] = useState<AnalyticsGranularity>("day");
-  const [analyticsRange, setAnalyticsRange] = useState<AnalyticsDateRange>(createDefaultAnalyticsRange);
-  const [analyticsRefreshing, setAnalyticsRefreshing] = useState(false);
-  const [analyticsRefreshError, setAnalyticsRefreshError] = useState<string>();
-  const [analyticsCooldownUntil, setAnalyticsCooldownUntil] = useState(0);
-  const [analyticsCooldownRemaining, setAnalyticsCooldownRemaining] = useState(0);
-  const analyticsRequest = useRef(0);
-  const analyticsRequestedKey = useRef("");
-  const analyticsCooldownRef = useRef(0);
+  const analytics = useAnalyticsMetrics(view === "analytics");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -2091,81 +1983,12 @@ function AdminWorkspace() {
     };
   }, [load]);
 
-  useEffect(() => {
-    const updateCooldown = () => {
-      const remaining = Math.max(0, analyticsCooldownUntil - Date.now());
-      setAnalyticsCooldownRemaining(Math.ceil(remaining / 1000));
-    };
-    updateCooldown();
-    if (!analyticsCooldownUntil) return;
-    const timer = window.setInterval(updateCooldown, 500);
-    return () => window.clearInterval(timer);
-  }, [analyticsCooldownUntil]);
-
   const navigate = (next: ViewKey) => {
     setView(next);
     const url = new URL(window.location.href);
     url.searchParams.set("view", next);
     window.history.pushState({}, "", url);
   };
-
-  const refreshAnalytics = useCallback(async (requestedGranularity: AnalyticsGranularity, requestedRange: AnalyticsDateRange, options: { force?: boolean; respectCooldown?: boolean } = {}) => {
-    const now = Date.now();
-    if (options.respectCooldown && analyticsCooldownRef.current > now) return;
-    const request = ++analyticsRequest.current;
-    setAnalyticsRefreshing(true);
-    setAnalyticsRefreshError(undefined);
-    try {
-      const result = await adminAdapter.refreshAnalytics({
-        granularity: requestedGranularity,
-        startDate: requestedRange[0].format("YYYY-MM-DD"),
-        endDate: requestedRange[1].format("YYYY-MM-DD"),
-        refresh: options.force,
-      });
-      if (request === analyticsRequest.current) setAnalyticsMetrics(result);
-    } catch (refreshError) {
-      if (request === analyticsRequest.current) setAnalyticsRefreshError(refreshError instanceof Error ? refreshError.message : "Amplitude 지표를 불러오지 못했습니다.");
-    } finally {
-      if (request === analyticsRequest.current) {
-        setAnalyticsRefreshing(false);
-        const cooldownUntil = Date.now() + ANALYTICS_REFRESH_COOLDOWN_MS;
-        analyticsCooldownRef.current = cooldownUntil;
-        setAnalyticsCooldownUntil(cooldownUntil);
-      }
-    }
-  }, []);
-
-  const analyticsStartDate = analyticsRange[0].format("YYYY-MM-DD");
-  const analyticsEndDate = analyticsRange[1].format("YYYY-MM-DD");
-  const analyticsQueryKey = `${analyticsGranularity}:${analyticsStartDate}:${analyticsEndDate}`;
-  const analyticsMetricsMatch = analyticsMetrics?.granularity === analyticsGranularity && analyticsMetrics.periodStart === analyticsStartDate && analyticsMetrics.periodEnd === analyticsEndDate;
-
-  useEffect(() => {
-    if (view !== "analytics" || analyticsRequestedKey.current === analyticsQueryKey) return;
-    analyticsRequestedKey.current = analyticsQueryKey;
-    void refreshAnalytics(analyticsGranularity, analyticsRange);
-  }, [analyticsGranularity, analyticsQueryKey, analyticsRange, refreshAnalytics, view]);
-
-  useEffect(() => {
-    if (view !== "analytics") return;
-    let timer = 0;
-    const scheduleFinalization = () => {
-      const now = dayjs();
-      const delay = Math.max(1_000, now.add(1, "day").startOf("day").diff(now) + 1_000);
-      timer = window.setTimeout(() => {
-        const yesterday = dayjs().subtract(1, "day").startOf("day");
-        void adminAdapter.refreshAnalytics({
-          granularity: "day",
-          startDate: yesterday.format("YYYY-MM-DD"),
-          endDate: yesterday.format("YYYY-MM-DD"),
-          refresh: true,
-        }).catch(() => undefined);
-        scheduleFinalization();
-      }, delay);
-    };
-    scheduleFinalization();
-    return () => window.clearTimeout(timer);
-  }, [view]);
 
   return (
     <Layout className="admin-shell">
@@ -2209,7 +2032,7 @@ function AdminWorkspace() {
               {view === "brands" && <BrandScreen brands={data.brands} dictionaries={data.dictionaries} setBrands={(update) => setData((current) => ({ ...current, brands: typeof update === "function" ? update(current.brands) : update }))} onOpenQrParsing={() => navigate("qr-parsing")} />}
               {view === "dictionary" && <DictionaryScreen dictionaries={data.dictionaries} setDictionaries={(update) => setData((current) => ({ ...current, dictionaries: typeof update === "function" ? update(current.dictionaries) : update }))} />}
               {view === "poses" && <PoseScreen poses={data.poses} setPoses={(update) => setData((current) => ({ ...current, poses: typeof update === "function" ? update(current.poses) : update }))} />}
-              {view === "analytics" && <AnalyticsScreen events={data.analyticsEvents} metrics={analyticsMetricsMatch ? analyticsMetrics : undefined} granularity={analyticsGranularity} range={analyticsRange} refreshing={analyticsRefreshing} cooldownRemaining={analyticsCooldownRemaining} refreshError={analyticsRefreshError} onRefresh={() => void refreshAnalytics(analyticsGranularity, analyticsRange, { force: true, respectCooldown: true })} onGranularityChange={setAnalyticsGranularity} onRangeChange={setAnalyticsRange} />}
+              {view === "analytics" && <AnalyticsScreen events={data.analyticsEvents} metrics={analytics.metrics} granularity={analytics.granularity} range={analytics.range} refreshing={analytics.refreshing} cooldownRemaining={analytics.cooldownRemaining} refreshError={analytics.refreshError} onRefresh={analytics.refresh} onGranularityChange={analytics.setGranularity} onRangeChange={analytics.setRange} />}
               {view === "group-account" && <GroupAccountScreen />}
               {view === "qr-parsing" && <QrParsingScreen onBack={() => navigate("brands")} />}
             </>

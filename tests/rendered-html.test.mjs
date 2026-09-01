@@ -65,7 +65,13 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
     readFile(new URL("../app/api/amplitude/metrics/analytics-cache-policy.ts", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0000_living_gwen_stacy.sql", import.meta.url), "utf8"),
   ]);
-  const localStorageSource = await readFile(new URL("../app/admin/local-admin-storage.ts", import.meta.url), "utf8");
+  const [localStorageSource, analyticsScreen, analyticsHook, analyticsModel, adminPageHeader] = await Promise.all([
+    readFile(new URL("../app/admin/local-admin-storage.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/admin/features/analytics/ui/AnalyticsScreen.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/admin/features/analytics/model/useAnalyticsMetrics.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/admin/features/analytics/model/analytics.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/admin/shared/ui/AdminPageHeader.tsx", import.meta.url), "utf8"),
+  ]);
 
   assert.match(page, /AdminApp/);
   assert.match(adminApp, /from "antd"/);
@@ -102,8 +108,8 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(adminApp, /key: "dictionary", label: "사전 관리"/);
   assert.match(adminApp, /analytics: \{ title: "Amplitude 지표" \}/);
   assert.match(adminApp, /key: "analytics", label: "Amplitude 지표"/);
-  assert.match(adminApp, /function AnalyticsScreen/);
-  const analyticsScreen = adminApp.slice(adminApp.indexOf("function AnalyticsScreen"), adminApp.indexOf("const formatAnalyticsMetric"));
+  assert.match(adminApp, /from "\.\/features\/analytics"/);
+  assert.doesNotMatch(adminApp, /function AnalyticsScreen/);
   assert.match(analyticsScreen, /const \[paginationEnabled, setPaginationEnabled\] = useState\(false\)/);
   assert.match(analyticsScreen, /aria-label="페이지네이션"/);
   assert.match(analyticsScreen, /pagination=\{paginationEnabled \? \{ pageSize: 10,[\s\S]*\} : false\}/);
@@ -117,16 +123,18 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(adminApp, /function GroupAccountScreen/);
   assert.match(adminApp, /계좌 연결 정보가 없습니다/);
   assert.doesNotMatch(adminApp, /<span>\{record\.platform\} · \{record\.sourceFile\}<\/span>/);
-  assert.match(adminApp, /<Title level=\{3\}>Amplitude 지표<\/Title>/);
-  assert.doesNotMatch(adminApp, /GA4/);
-  assert.doesNotMatch(adminApp, /이벤트명을 누르면 상세 정보를 볼 수 있습니다/);
-  assert.match(adminApp, /ANALYTICS_REFRESH_COOLDOWN_MS = 30_000/);
-  assert.match(adminApp, /cooldownRemaining > 0/);
-  assert.match(adminApp, /선택 기간 발생/);
-  assert.match(adminApp, /활성 사용자/);
-  assert.match(adminApp, /일별/);
-  assert.match(adminApp, /주별/);
-  assert.match(adminApp, /월별/);
+  assert.match(analyticsScreen, /<Title level=\{3\}>Amplitude 지표<\/Title>/);
+  assert.doesNotMatch(analyticsScreen, /GA4/);
+  assert.doesNotMatch(analyticsScreen, /이벤트명을 누르면 상세 정보를 볼 수 있습니다/);
+  assert.match(analyticsModel, /ANALYTICS_REFRESH_COOLDOWN_MS = 30_000/);
+  assert.match(analyticsHook, /useAnalyticsMetrics/);
+  assert.match(analyticsHook, /cooldownRemaining/);
+  assert.match(analyticsScreen, /선택 기간 발생/);
+  assert.match(adminPageHeader, /export function AdminPageHeader/);
+  assert.match(analyticsScreen, /활성 사용자/);
+  assert.match(analyticsModel, /일별/);
+  assert.match(analyticsModel, /주별/);
+  assert.match(analyticsModel, /월별/);
   assert.match(adapterEntry, /apiAdminAdapter/);
   assert.match(apiAdapter, /new URLSearchParams\(\{[\s\S]*granularity: query\.granularity,[\s\S]*startDate: query\.startDate,[\s\S]*endDate: query\.endDate/);
   assert.match(apiAdapter, /fetch\(`\/api\/amplitude\/metrics\?\$\{params\.toString\(\)\}`/);
@@ -178,7 +186,7 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(adminApp, /Android 파싱 로직/);
   assert.match(adminApp, /WebView 진입 즉시/);
   assert.match(adminApp, /onOpenQrParsing/);
-  assert.match(adminApp, /view === "analytics" && <AnalyticsScreen events=\{data\.analyticsEvents\} metrics=\{analyticsMetricsMatch \? analyticsMetrics : undefined\}/);
+  assert.match(adminApp, /view === "analytics" && <AnalyticsScreen events=\{data\.analyticsEvents\} metrics=\{analytics\.metrics\}/);
   assert.match(adminApp, /view === "qr-parsing" && <QrParsingScreen onBack=\{\(\) => navigate\("brands"\)\}/);
   assert.match(adminApp, /type BrandQrFilter = "supported" \| "unsupported"/);
   assert.match(adminApp, /type BrandMapFilter = "visible" \| "hidden"/);
