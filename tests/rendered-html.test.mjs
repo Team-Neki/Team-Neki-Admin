@@ -99,6 +99,10 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(adminApp, /analytics: \{ title: "Amplitude 지표" \}/);
   assert.match(adminApp, /key: "analytics", label: "Amplitude 지표"/);
   assert.match(adminApp, /function AnalyticsScreen/);
+  const analyticsScreen = adminApp.slice(adminApp.indexOf("function AnalyticsScreen"), adminApp.indexOf("const formatAnalyticsMetric"));
+  assert.match(analyticsScreen, /const \[paginationEnabled, setPaginationEnabled\] = useState\(false\)/);
+  assert.match(analyticsScreen, /aria-label="페이지네이션"/);
+  assert.match(analyticsScreen, /pagination=\{paginationEnabled \? \{ pageSize: 10,[\s\S]*\} : false\}/);
   assert.match(adminApp, /function GroupAccountScreen/);
   assert.match(adminApp, /계좌 연결 정보가 없습니다/);
   assert.doesNotMatch(adminApp, /<span>\{record\.platform\} · \{record\.sourceFile\}<\/span>/);
