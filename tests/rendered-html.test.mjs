@@ -45,7 +45,7 @@ test("server-renders the Neki Admin operations shell and loading state", async (
 });
 
 test("keeps the Neki design foundation and API adapter boundary explicit", async () => {
-  const [page, adminApp, adapterEntry, apiAdapter, amplitudeRoute, dashboardRoute, amplitudeClient, mockAdapter, mockData, types, css, layout, packageJson, mockAnalytics] = await Promise.all([
+  const [page, adminApp, adapterEntry, apiAdapter, amplitudeRoute, dashboardRoute, amplitudeClient, mockAdapter, mockData, types, css, layout, packageJson, mockAnalytics, dbSchema, hostingConfig, cachePolicy, analyticsMigration] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/AdminApp.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/admin-adapter.ts", import.meta.url), "utf8"),
@@ -60,6 +60,10 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/mock-analytics-events.ts", import.meta.url), "utf8"),
+    readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
+    readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/amplitude/metrics/analytics-cache-policy.ts", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0000_living_gwen_stacy.sql", import.meta.url), "utf8"),
   ]);
   const localStorageSource = await readFile(new URL("../app/admin/local-admin-storage.ts", import.meta.url), "utf8");
 
@@ -103,6 +107,10 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(analyticsScreen, /const \[paginationEnabled, setPaginationEnabled\] = useState\(false\)/);
   assert.match(analyticsScreen, /aria-label="페이지네이션"/);
   assert.match(analyticsScreen, /pagination=\{paginationEnabled \? \{ pageSize: 10,[\s\S]*\} : false\}/);
+  assert.match(analyticsScreen, /DatePicker\.RangePicker[\s\S]*aria-label="지표 조회 기간"/);
+  assert.match(analyticsScreen, /title: "기능 영역"[\s\S]*sorter: \(a, b\) => a\.area\.localeCompare/);
+  assert.match(analyticsScreen, /title: "선택 기간 발생"[\s\S]*sorter: \(a, b\) => \(metricByName\.get\(a\.name\)\?\.total/);
+  assert.match(analyticsScreen, /title: "고유 사용자"[\s\S]*sorter: \(a, b\) => \(metricByName\.get\(a\.name\)\?\.uniques/);
   assert.match(adminApp, /function GroupAccountScreen/);
   assert.match(adminApp, /계좌 연결 정보가 없습니다/);
   assert.doesNotMatch(adminApp, /<span>\{record\.platform\} · \{record\.sourceFile\}<\/span>/);
@@ -117,7 +125,8 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(adminApp, /주별/);
   assert.match(adminApp, /월별/);
   assert.match(adapterEntry, /apiAdminAdapter/);
-  assert.match(apiAdapter, /fetch\(`\/api\/amplitude\/metrics\?granularity=\$\{granularity\}`/);
+  assert.match(apiAdapter, /new URLSearchParams\(\{[\s\S]*granularity: query\.granularity,[\s\S]*startDate: query\.startDate,[\s\S]*endDate: query\.endDate/);
+  assert.match(apiAdapter, /fetch\(`\/api\/amplitude\/metrics\?\$\{params\.toString\(\)\}`/);
   assert.match(apiAdapter, /fetch\(`\/api\/amplitude\/dashboard\?/);
   assert.match(apiAdapter, /fetch\(`\/api\/group-account\/transactions\?/);
   assert.match(dashboardRoute, /\/api\/2\/users/);
@@ -144,15 +153,29 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(amplitudeRoute, /\/api\/2\/events\/segmentation/);
   assert.match(amplitudeRoute, /\/api\/2\/users/);
   assert.match(amplitudeRoute, /granularity/);
-  assert.match(amplitudeRoute, /METRICS_CACHE_TTL_MS = 60_000/);
+  assert.match(amplitudeRoute, /analytics_daily_event_metrics/);
+  assert.match(amplitudeRoute, /analytics_daily_statuses/);
+  assert.match(amplitudeRoute, /analytics_range_snapshots/);
+  assert.match(amplitudeRoute, /isAnalyticsStatusReusable/);
+  assert.match(amplitudeRoute, /isAnalyticsRangeSnapshotReusable/);
+  assert.match(amplitudeRoute, /collectionWindows/);
   assert.match(amplitudeRoute, /event_type: "_all"/);
   assert.match(amplitudeRoute, /event_type_value/);
   assert.doesNotMatch(amplitudeRoute, /fetchPairedEventMetrics|amplitudeQueryEventName|withConcurrency|aggregateEventMetricsSupported/);
+  assert.match(amplitudeClient, /AMPLITUDE_TIME_ZONE/);
+  assert.match(cachePolicy, /if \(date < today\) return status\.finalized/);
+  assert.match(cachePolicy, /ANALYTICS_LIVE_CACHE_TTL_MS = 60_000/);
+  assert.match(dbSchema, /analyticsDailyEventMetrics/);
+  assert.match(dbSchema, /analyticsDailyStatuses/);
+  assert.match(dbSchema, /analyticsRangeSnapshots/);
+  assert.match(hostingConfig, /"d1": "DB"/);
+  assert.match(analyticsMigration, /CREATE TABLE `analytics_daily_event_metrics`/);
+  assert.match(analyticsMigration, /CREATE TABLE `analytics_range_snapshots`/);
   assert.match(adminApp, /function QrParsingScreen/);
   assert.match(adminApp, /Android 파싱 로직/);
   assert.match(adminApp, /WebView 진입 즉시/);
   assert.match(adminApp, /onOpenQrParsing/);
-  assert.match(adminApp, /view === "analytics" && <AnalyticsScreen events=\{data\.analyticsEvents\} metrics=\{analyticsMetrics\}/);
+  assert.match(adminApp, /view === "analytics" && <AnalyticsScreen events=\{data\.analyticsEvents\} metrics=\{analyticsMetricsMatch \? analyticsMetrics : undefined\}/);
   assert.match(adminApp, /view === "qr-parsing" && <QrParsingScreen onBack=\{\(\) => navigate\("brands"\)\}/);
   assert.match(adminApp, /type BrandQrFilter = "supported" \| "unsupported"/);
   assert.match(adminApp, /type BrandMapFilter = "visible" \| "hidden"/);

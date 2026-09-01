@@ -4,6 +4,7 @@ export const NEKI_PROD_API_KEY_ENV = "NEKI_PROD_AMPLITUDE_API_KEY";
 export const NEKI_PROD_SECRET_KEY_ENV = "NEKI_PROD_AMPLITUDE_SECRET_KEY";
 export const AMPLITUDE_REGION_ENV = "AMPLITUDE_REGION";
 export const AMPLITUDE_PROJECT_START_DATE_ENV = "AMPLITUDE_PROJECT_START_DATE";
+export const AMPLITUDE_TIME_ZONE_ENV = "AMPLITUDE_TIME_ZONE";
 
 const RESPONSE_CACHE_TTL_MS = 60_000;
 const RESPONSE_CACHE_MAX_ENTRIES = 64;
@@ -40,6 +41,7 @@ const loadRuntimeValues = async () => {
     secretKey: read(NEKI_PROD_SECRET_KEY_ENV),
     region: read(AMPLITUDE_REGION_ENV),
     projectStartDate: read(AMPLITUDE_PROJECT_START_DATE_ENV),
+    timeZone: read(AMPLITUDE_TIME_ZONE_ENV) || "Asia/Seoul",
   };
 };
 

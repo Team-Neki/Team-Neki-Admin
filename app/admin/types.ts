@@ -170,6 +170,13 @@ export type AnalyticsEventMetric = {
 
 export type AnalyticsGranularity = "day" | "week" | "month";
 
+export type AnalyticsMetricsQuery = {
+  granularity: AnalyticsGranularity;
+  startDate: string;
+  endDate: string;
+  refresh?: boolean;
+};
+
 export type AnalyticsActiveUserPoint = {
   date: string;
   value: number;
@@ -183,6 +190,11 @@ export type AnalyticsRefreshResult = {
   periodEnd: string;
   events: AnalyticsEventMetric[];
   activeUsers: AnalyticsActiveUserPoint[];
+  cache: {
+    storedDays: number;
+    refreshedDays: number;
+    finalizedDays: number;
+  };
 };
 
 export type QrParsingRule = {
@@ -266,7 +278,7 @@ export interface AdminAdapter {
   saveBrand(draft: BrandDraft, id?: string): Promise<BrandRecord>;
   saveDictionary(draft: DictionaryDraft, id?: string): Promise<DictionaryRecord>;
   uploadPoses(input: PoseUploadInput[]): Promise<PoseRecord[]>;
-  refreshAnalytics(granularity: AnalyticsGranularity): Promise<AnalyticsRefreshResult>;
+  refreshAnalytics(query: AnalyticsMetricsQuery): Promise<AnalyticsRefreshResult>;
   getGroupAccountStatus(): Promise<GroupAccountStatus>;
   getGroupAccountTransactions(query: GroupAccountQuery): Promise<GroupAccountTransactionsResponse>;
 }

@@ -1,7 +1,7 @@
 import { mockAdminAdapter } from "./mock-admin-adapter";
 import type {
   AdminAdapter,
-  AnalyticsGranularity,
+  AnalyticsMetricsQuery,
   AnalyticsRefreshResult,
   DashboardMetrics,
   DashboardMetricsQuery,
@@ -20,8 +20,8 @@ type GroupAccountApiError = {
 };
 
 const ANALYTICS_CLIENT_CACHE_TTL_MS = 60_000;
-const analyticsCache = new Map<AnalyticsGranularity, { value: AnalyticsRefreshResult; expiresAt: number }>();
-const analyticsInFlight = new Map<AnalyticsGranularity, Promise<AnalyticsRefreshResult>>();
+const analyticsCache = new Map<string, { value: AnalyticsRefreshResult; expiresAt: number }>();
+const analyticsInFlight = new Map<string, Promise<AnalyticsRefreshResult>>();
 const DASHBOARD_CLIENT_CACHE_TTL_MS = 60_000;
 const DASHBOARD_CLIENT_CACHE_MAX_ENTRIES = 32;
 const dashboardCache = new Map<string, { value: DashboardMetrics; expiresAt: number }>();
@@ -158,17 +158,24 @@ const getGroupAccountTransactions = async (query: GroupAccountQuery): Promise<Gr
   }
 };
 
-const refreshAnalytics = async (granularity: AnalyticsGranularity): Promise<AnalyticsRefreshResult> => {
+const refreshAnalytics = async (query: AnalyticsMetricsQuery): Promise<AnalyticsRefreshResult> => {
+  const cacheKey = `${query.granularity}:${query.startDate}:${query.endDate}`;
   const now = Date.now();
-  const cached = analyticsCache.get(granularity);
-  if (cached && cached.expiresAt > now) return cached.value;
-  if (cached) analyticsCache.delete(granularity);
+  const cached = analyticsCache.get(cacheKey);
+  if (!query.refresh && cached && cached.expiresAt > now) return cached.value;
+  if (cached) analyticsCache.delete(cacheKey);
 
-  const pending = analyticsInFlight.get(granularity);
+  const pending = analyticsInFlight.get(cacheKey);
   if (pending) return pending;
 
   const request = (async () => {
-    const response = await fetch(`/api/amplitude/metrics?granularity=${granularity}`, {
+    const params = new URLSearchParams({
+      granularity: query.granularity,
+      startDate: query.startDate,
+      endDate: query.endDate,
+    });
+    if (query.refresh) params.set("refresh", "1");
+    const response = await fetch(`/api/amplitude/metrics?${params.toString()}`, {
       headers: { Accept: "application/json" },
       cache: "default",
     });
@@ -179,15 +186,15 @@ const refreshAnalytics = async (granularity: AnalyticsGranularity): Promise<Anal
     }
 
     const result = payload as AnalyticsRefreshResult;
-    analyticsCache.set(granularity, { value: result, expiresAt: Date.now() + ANALYTICS_CLIENT_CACHE_TTL_MS });
+    analyticsCache.set(cacheKey, { value: result, expiresAt: Date.now() + ANALYTICS_CLIENT_CACHE_TTL_MS });
     return result;
   })();
 
-  analyticsInFlight.set(granularity, request);
+  analyticsInFlight.set(cacheKey, request);
   try {
     return await request;
   } finally {
-    if (analyticsInFlight.get(granularity) === request) analyticsInFlight.delete(granularity);
+    if (analyticsInFlight.get(cacheKey) === request) analyticsInFlight.delete(cacheKey);
   }
 };
 

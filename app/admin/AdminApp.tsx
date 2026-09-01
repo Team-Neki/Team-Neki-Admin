@@ -1309,6 +1309,18 @@ function StoreScreen({ stores, setStores, brands }: { stores: StoreRecord[]; set
 }
 
 const ANALYTICS_AREAS = ["전체", "앱 공통", "아카이빙", "지도", "포즈", "마이페이지"] as const;
+const ANALYTICS_MIN_DATE = dayjs("2024-01-01");
+type AnalyticsDateRange = [Dayjs, Dayjs];
+const createDefaultAnalyticsRange = (): AnalyticsDateRange => {
+  const today = dayjs().startOf("day");
+  return [today.subtract(29, "day"), today];
+};
+const ANALYTICS_RANGE_PRESETS = [
+  { label: "오늘", value: [dayjs().startOf("day"), dayjs().startOf("day")] as AnalyticsDateRange },
+  { label: "최근 7일", value: [dayjs().subtract(6, "day").startOf("day"), dayjs().startOf("day")] as AnalyticsDateRange },
+  { label: "최근 30일", value: createDefaultAnalyticsRange() },
+  { label: "이번 달", value: [dayjs().startOf("month"), dayjs().startOf("day")] as AnalyticsDateRange },
+];
 const ANALYTICS_GRANULARITY_OPTIONS: Array<{ label: string; value: AnalyticsGranularity }> = [
   { label: "일별", value: "day" },
   { label: "주별", value: "week" },
@@ -1317,7 +1329,7 @@ const ANALYTICS_GRANULARITY_OPTIONS: Array<{ label: string; value: AnalyticsGran
 const ANALYTICS_REFRESH_COOLDOWN_MS = 30_000;
 const analyticsGranularityLabel = (value: AnalyticsGranularity) => ANALYTICS_GRANULARITY_OPTIONS.find((option) => option.value === value)?.label ?? "일별";
 
-function AnalyticsScreen({ events, metrics, granularity, refreshing, cooldownRemaining, refreshError, onRefresh, onGranularityChange }: { events: AnalyticsEventRecord[]; metrics?: AnalyticsRefreshResult; granularity: AnalyticsGranularity; refreshing: boolean; cooldownRemaining: number; refreshError?: string; onRefresh: () => void; onGranularityChange: (value: AnalyticsGranularity) => void }) {
+function AnalyticsScreen({ events, metrics, granularity, range, refreshing, cooldownRemaining, refreshError, onRefresh, onGranularityChange, onRangeChange }: { events: AnalyticsEventRecord[]; metrics?: AnalyticsRefreshResult; granularity: AnalyticsGranularity; range: AnalyticsDateRange; refreshing: boolean; cooldownRemaining: number; refreshError?: string; onRefresh: () => void; onGranularityChange: (value: AnalyticsGranularity) => void; onRangeChange: (value: AnalyticsDateRange) => void }) {
   const [area, setArea] = useState<(typeof ANALYTICS_AREAS)[number]>("전체");
   const [query, setQuery] = useState("");
   const [paginationEnabled, setPaginationEnabled] = useState(false);
@@ -1333,10 +1345,10 @@ function AnalyticsScreen({ events, metrics, granularity, refreshing, cooldownRem
   }, [area, events, query]);
   const columns: TableProps<AnalyticsEventRecord>["columns"] = [
     { title: "이벤트명", dataIndex: "name", width: 220, render: (value, record) => <button type="button" className="table-primary-link" onClick={() => setSelected(record)}><strong>{value}</strong></button> },
-    { title: "기능 영역", dataIndex: "area", width: 110, render: (value) => <Tag>{value}</Tag> },
+    { title: "기능 영역", dataIndex: "area", width: 120, sorter: (a, b) => a.area.localeCompare(b.area, "ko"), sortDirections: ["ascend", "descend"], render: (value) => <Tag>{value}</Tag> },
     { title: "페이지·기능", dataIndex: "screen", width: 150 },
-    { title: "선택 기간 발생", width: 120, render: (_, record) => formatAnalyticsMetric(metricByName.get(record.name), "total") },
-    { title: "고유 사용자", width: 120, render: (_, record) => formatAnalyticsMetric(metricByName.get(record.name), "uniques") },
+    { title: "선택 기간 발생", width: 140, sorter: (a, b) => (metricByName.get(a.name)?.total ?? 0) - (metricByName.get(b.name)?.total ?? 0), sortDirections: ["descend", "ascend"], render: (_, record) => formatAnalyticsMetric(metricByName.get(record.name), "total") },
+    { title: "고유 사용자", width: 130, sorter: (a, b) => (metricByName.get(a.name)?.uniques ?? 0) - (metricByName.get(b.name)?.uniques ?? 0), sortDirections: ["descend", "ascend"], render: (_, record) => formatAnalyticsMetric(metricByName.get(record.name), "uniques") },
     { title: "파라미터", width: 210, render: (_, record) => record.parameters.length ? <Space size={[4, 4]} wrap>{record.parameters.map((parameter) => <Tag key={parameter.name} color="blue">{parameter.name}{parameter.optional ? " · 선택" : ""}</Tag>)}</Space> : <Text type="secondary">없음</Text> },
     { title: "트리거 시점", dataIndex: "trigger", width: 320, ellipsis: true },
   ];
@@ -1350,7 +1362,7 @@ function AnalyticsScreen({ events, metrics, granularity, refreshing, cooldownRem
       </Card>
       {refreshError && <Alert className="analytics-refresh-alert" type="warning" showIcon title={refreshError} />}
       <Card className="content-card table-card analytics-table-card">
-        <div className="toolbar analytics-toolbar"><Segmented options={ANALYTICS_GRANULARITY_OPTIONS} value={granularity} disabled={refreshing || cooldownRemaining > 0} onChange={(value) => onGranularityChange(value as AnalyticsGranularity)} aria-label="지표 조회 단위" /><Select value={area} onChange={setArea} aria-label="이벤트 기능 영역 필터" options={ANALYTICS_AREAS.map((item) => ({ label: item, value: item }))} /><Input.Search value={query} onChange={(event) => setQuery(event.target.value)} allowClear placeholder="이벤트명·페이지·트리거 검색" aria-label="이벤트 검색" /></div>
+        <div className="toolbar analytics-toolbar"><DatePicker.RangePicker className="analytics-range-picker" value={range} allowClear={false} inputReadOnly minDate={ANALYTICS_MIN_DATE} maxDate={dayjs().startOf("day")} presets={ANALYTICS_RANGE_PRESETS} format="YYYY.MM.DD" onChange={(dates) => dates?.[0] && dates[1] && onRangeChange([dates[0].startOf("day"), dates[1].startOf("day")])} aria-label="지표 조회 기간" /><Segmented options={ANALYTICS_GRANULARITY_OPTIONS} value={granularity} disabled={refreshing} onChange={(value) => onGranularityChange(value as AnalyticsGranularity)} aria-label="지표 조회 단위" /><Select value={area} onChange={setArea} aria-label="이벤트 기능 영역 필터" options={ANALYTICS_AREAS.map((item) => ({ label: item, value: item }))} /><Input.Search value={query} onChange={(event) => setQuery(event.target.value)} allowClear placeholder="이벤트명·페이지·트리거 검색" aria-label="이벤트 검색" /></div>
         <div className="result-summary"><Text strong>{filtered.length}개 이벤트</Text><Space size={8}><Text type="secondary">페이지네이션</Text><Switch size="small" checked={paginationEnabled} onChange={setPaginationEnabled} checkedChildren="ON" unCheckedChildren="OFF" aria-label="페이지네이션" /></Space></div>
         {filtered.length ? <Table rowKey="id" columns={columns} dataSource={filtered} scroll={{ x: 1040 }} pagination={paginationEnabled ? { pageSize: 10, showSizeChanger: false, showTotal: (total) => `총 ${total}개` } : false} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="조건에 맞는 이벤트가 없습니다." />}
       </Card>
@@ -2026,11 +2038,13 @@ function AdminWorkspace() {
   const [error, setError] = useState(false);
   const [analyticsMetrics, setAnalyticsMetrics] = useState<AnalyticsRefreshResult>();
   const [analyticsGranularity, setAnalyticsGranularity] = useState<AnalyticsGranularity>("day");
+  const [analyticsRange, setAnalyticsRange] = useState<AnalyticsDateRange>(createDefaultAnalyticsRange);
   const [analyticsRefreshing, setAnalyticsRefreshing] = useState(false);
   const [analyticsRefreshError, setAnalyticsRefreshError] = useState<string>();
   const [analyticsCooldownUntil, setAnalyticsCooldownUntil] = useState(0);
   const [analyticsCooldownRemaining, setAnalyticsCooldownRemaining] = useState(0);
-  const analyticsRefreshLock = useRef(false);
+  const analyticsRequest = useRef(0);
+  const analyticsRequestedKey = useRef("");
   const analyticsCooldownRef = useRef(0);
 
   const load = useCallback(async () => {
@@ -2083,25 +2097,63 @@ function AdminWorkspace() {
     window.history.pushState({}, "", url);
   };
 
-  const refreshAnalytics = async (requestedGranularity = analyticsGranularity) => {
+  const refreshAnalytics = useCallback(async (requestedGranularity: AnalyticsGranularity, requestedRange: AnalyticsDateRange, options: { force?: boolean; respectCooldown?: boolean } = {}) => {
     const now = Date.now();
-    if (analyticsRefreshLock.current || analyticsCooldownRef.current > now) return;
-    analyticsRefreshLock.current = true;
-    setAnalyticsGranularity(requestedGranularity);
+    if (options.respectCooldown && analyticsCooldownRef.current > now) return;
+    const request = ++analyticsRequest.current;
     setAnalyticsRefreshing(true);
     setAnalyticsRefreshError(undefined);
     try {
-      setAnalyticsMetrics(await adminAdapter.refreshAnalytics(requestedGranularity));
+      const result = await adminAdapter.refreshAnalytics({
+        granularity: requestedGranularity,
+        startDate: requestedRange[0].format("YYYY-MM-DD"),
+        endDate: requestedRange[1].format("YYYY-MM-DD"),
+        refresh: options.force,
+      });
+      if (request === analyticsRequest.current) setAnalyticsMetrics(result);
     } catch (refreshError) {
-      setAnalyticsRefreshError(refreshError instanceof Error ? refreshError.message : "Amplitude 지표를 불러오지 못했습니다.");
+      if (request === analyticsRequest.current) setAnalyticsRefreshError(refreshError instanceof Error ? refreshError.message : "Amplitude 지표를 불러오지 못했습니다.");
     } finally {
-      setAnalyticsRefreshing(false);
-      const cooldownUntil = Date.now() + ANALYTICS_REFRESH_COOLDOWN_MS;
-      analyticsCooldownRef.current = cooldownUntil;
-      setAnalyticsCooldownUntil(cooldownUntil);
-      analyticsRefreshLock.current = false;
+      if (request === analyticsRequest.current) {
+        setAnalyticsRefreshing(false);
+        const cooldownUntil = Date.now() + ANALYTICS_REFRESH_COOLDOWN_MS;
+        analyticsCooldownRef.current = cooldownUntil;
+        setAnalyticsCooldownUntil(cooldownUntil);
+      }
     }
-  };
+  }, []);
+
+  const analyticsStartDate = analyticsRange[0].format("YYYY-MM-DD");
+  const analyticsEndDate = analyticsRange[1].format("YYYY-MM-DD");
+  const analyticsQueryKey = `${analyticsGranularity}:${analyticsStartDate}:${analyticsEndDate}`;
+  const analyticsMetricsMatch = analyticsMetrics?.granularity === analyticsGranularity && analyticsMetrics.periodStart === analyticsStartDate && analyticsMetrics.periodEnd === analyticsEndDate;
+
+  useEffect(() => {
+    if (view !== "analytics" || analyticsRequestedKey.current === analyticsQueryKey) return;
+    analyticsRequestedKey.current = analyticsQueryKey;
+    void refreshAnalytics(analyticsGranularity, analyticsRange);
+  }, [analyticsGranularity, analyticsQueryKey, analyticsRange, refreshAnalytics, view]);
+
+  useEffect(() => {
+    if (view !== "analytics") return;
+    let timer = 0;
+    const scheduleFinalization = () => {
+      const now = dayjs();
+      const delay = Math.max(1_000, now.add(1, "day").startOf("day").diff(now) + 1_000);
+      timer = window.setTimeout(() => {
+        const yesterday = dayjs().subtract(1, "day").startOf("day");
+        void adminAdapter.refreshAnalytics({
+          granularity: "day",
+          startDate: yesterday.format("YYYY-MM-DD"),
+          endDate: yesterday.format("YYYY-MM-DD"),
+          refresh: true,
+        }).catch(() => undefined);
+        scheduleFinalization();
+      }, delay);
+    };
+    scheduleFinalization();
+    return () => window.clearTimeout(timer);
+  }, [view]);
 
   return (
     <Layout className="admin-shell">
@@ -2145,7 +2197,7 @@ function AdminWorkspace() {
               {view === "brands" && <BrandScreen brands={data.brands} dictionaries={data.dictionaries} setBrands={(update) => setData((current) => ({ ...current, brands: typeof update === "function" ? update(current.brands) : update }))} onOpenQrParsing={() => navigate("qr-parsing")} />}
               {view === "dictionary" && <DictionaryScreen dictionaries={data.dictionaries} setDictionaries={(update) => setData((current) => ({ ...current, dictionaries: typeof update === "function" ? update(current.dictionaries) : update }))} />}
               {view === "poses" && <PoseScreen poses={data.poses} setPoses={(update) => setData((current) => ({ ...current, poses: typeof update === "function" ? update(current.poses) : update }))} />}
-              {view === "analytics" && <AnalyticsScreen events={data.analyticsEvents} metrics={analyticsMetrics} granularity={analyticsGranularity} refreshing={analyticsRefreshing} cooldownRemaining={analyticsCooldownRemaining} refreshError={analyticsRefreshError} onRefresh={() => void refreshAnalytics()} onGranularityChange={(next) => void refreshAnalytics(next)} />}
+              {view === "analytics" && <AnalyticsScreen events={data.analyticsEvents} metrics={analyticsMetricsMatch ? analyticsMetrics : undefined} granularity={analyticsGranularity} range={analyticsRange} refreshing={analyticsRefreshing} cooldownRemaining={analyticsCooldownRemaining} refreshError={analyticsRefreshError} onRefresh={() => void refreshAnalytics(analyticsGranularity, analyticsRange, { force: true, respectCooldown: true })} onGranularityChange={setAnalyticsGranularity} onRangeChange={setAnalyticsRange} />}
               {view === "group-account" && <GroupAccountScreen />}
               {view === "qr-parsing" && <QrParsingScreen onBack={() => navigate("brands")} />}
             </>
