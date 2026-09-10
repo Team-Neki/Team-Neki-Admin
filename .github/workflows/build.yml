@@ -1,0 +1,99 @@
+# main 에 merge 되면 이미지를 GHCR 에 올리고 GitOps 레포의 태그를 갱신한다.
+#
+#   merge -> 이미지 빌드/푸시 -> GitOps newTag 커밋 -> ArgoCD 가 neki-admin-web 롤링
+#
+# 이 워크플로의 첫 성공 실행이 ghcr.io/team-neki/neki-admin-web 패키지를 생성한다.
+# 생성된 패키지는 기본적으로 private 이므로, 클러스터가 pull 하려면 패키지 설정에서
+# visibility 를 public 으로 바꾸거나 GitOps 쪽에 imagePullSecret 을 넣어야 한다.
+name: build
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+# GitOps 커밋이 겹치면 rebase 로 풀리지 않는 충돌이 나므로 직렬화한다.
+concurrency:
+  group: build-main
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/team-neki/neki-admin-web
+  GITOPS_REPO: Team-Neki/Team-Neki-GitOps
+  GITOPS_PATH: overlays/prod/kustomization.yaml
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # 조직 secret 이 이 저장소에 열려 있지 않으면 아래 GitOps checkout 이
+      # "Input required and not supplied: token" 으로만 끝나 원인이 드러나지 않는다.
+      # 이미지를 밀기 전에 막아 GitOps 가 가리키지 않는 태그를 남기지 않는다.
+      - name: Check GitOps token
+        env:
+          GITOPS_PAT: ${{ secrets.GITOPS_PAT }}
+        run: |
+          test -n "$GITOPS_PAT" || {
+            echo "::error::GITOPS_PAT 가 이 저장소에서 보이지 않는다. Team-Neki 조직 secret 을 이 저장소(Team-Neki-Admin)에 열어야 한다."
+            exit 1
+          }
+
+      # 태그는 <package.json version>-<sha7>. main 태그도 같이 올려 최신을 가리킨다.
+      - name: Resolve image tag
+        id: tag
+        run: |
+          version=$(jq -r .version package.json)
+          test -n "$version" -a "$version" != "null" || {
+            echo "::error::package.json 에서 version 을 읽지 못했다."
+            exit 1
+          }
+          echo "tag=${version}-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build and push
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          docker build -t "$IMAGE:$TAG" -t "$IMAGE:main" .
+          docker push "$IMAGE:$TAG"
+          docker push "$IMAGE:main"
+
+      # GITOPS_PAT: Team-Neki 조직 secret. GitOps 레포에 contents:write 권한이 있는 PAT 로
+      # 다른 저장소 CI 와 같은 것을 쓴다. 조직 설정에서 이 저장소에 열려 있어야 한다.
+      - uses: actions/checkout@v5
+        with:
+          repository: ${{ env.GITOPS_REPO }}
+          token: ${{ secrets.GITOPS_PAT }}
+          path: gitops
+
+      - name: Update image tag in GitOps repo
+        working-directory: gitops
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          yq -i '(.images[] | select(.name == strenv(IMAGE))).newTag = strenv(TAG)' "$GITOPS_PATH"
+          # 셀렉터가 이미지를 못 찾으면 파일이 그대로라 여기서 걸린다.
+          test "$(yq '.images[] | select(.name == strenv(IMAGE)) | .newTag' "$GITOPS_PATH")" = "$TAG"
+          if git diff --quiet; then
+            echo "already at $TAG"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore(prod): update image to $TAG"
+          # 다른 레포의 CI 도 같은 GitOps 레포에 커밋하므로 push 직전에 rebase 한다.
+          for i in 1 2 3; do
+            git pull --rebase && git push && exit 0
+            sleep $((i * 5))
+          done
+          exit 1
