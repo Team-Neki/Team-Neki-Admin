@@ -38,12 +38,6 @@ yarn-error.log*
 next-env.d.ts
 *.tsbuildinfo
 
-# local runtime data
-/.data/
-*.sqlite
-*.sqlite-shm
-*.sqlite-wal
-
 # local tools and generated artifacts
 /.codex/
 /.lazyweb/

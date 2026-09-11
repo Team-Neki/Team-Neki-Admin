@@ -6,8 +6,6 @@ import type {
   GroupAccountTransactionsResponse,
 } from "../../admin/types";
 
-type RuntimeEnv = Record<string, unknown>;
-
 const PAGE_SIZE = 25;
 const TRACE_CACHE_MAX_ENTRIES = 128;
 const OPEN_BANKING_TRANSACTION_PATH = "/v2.0/account/transaction_list/fin_num";
@@ -28,19 +26,9 @@ export class GroupAccountProviderError extends Error {
   }
 }
 
-const readRuntimeEnv = async (): Promise<RuntimeEnv> => {
-  try {
-    const workerModule = await import(String("cloudflare:workers"));
-    return workerModule.env as unknown as RuntimeEnv;
-  } catch {
-    return {};
-  }
-};
-
 export const getGroupAccountRuntime = async (): Promise<GroupAccountRuntime> => {
-  const runtime = await readRuntimeEnv();
   const read = (name: string) => {
-    const value = runtime[name] ?? process.env[name];
+    const value = process.env[name];
     return typeof value === "string" ? value.trim() : "";
   };
 

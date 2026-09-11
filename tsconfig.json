@@ -31,15 +31,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": [
-    "node_modules",
-    ".openai",
-    ".product-design",
-    ".lazyweb",
-    "build/sites-vite-plugin.ts",
-    "vite.config.ts",
-    "worker",
-    "worker-configuration.d.ts",
-    "examples/d1"
-  ]
+  "exclude": ["node_modules"]
 }

@@ -1,6 +1,5 @@
 "use client";
 
-import dayjs from "dayjs";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { adminAdapter } from "../../../admin-adapter";
 import type { AnalyticsGranularity, AnalyticsRefreshResult } from "../../../types";
@@ -82,27 +81,6 @@ export function useAnalyticsMetrics(active: boolean) {
     requestedKey.current = queryKey;
     void refreshMetrics(granularity, range);
   }, [active, granularity, queryKey, range, refreshMetrics]);
-
-  useEffect(() => {
-    if (!active) return;
-    let timer = 0;
-    const scheduleFinalization = () => {
-      const now = dayjs();
-      const delay = Math.max(1_000, now.add(1, "day").startOf("day").diff(now) + 1_000);
-      timer = window.setTimeout(() => {
-        const yesterday = dayjs().subtract(1, "day").startOf("day");
-        void adminAdapter.refreshAnalytics({
-          granularity: "day",
-          startDate: yesterday.format("YYYY-MM-DD"),
-          endDate: yesterday.format("YYYY-MM-DD"),
-          refresh: true,
-        }).catch(() => undefined);
-        scheduleFinalization();
-      }, delay);
-    };
-    scheduleFinalization();
-    return () => window.clearTimeout(timer);
-  }, [active]);
 
   const refresh = useCallback(() => {
     void refreshMetrics(granularity, range, { force: true, respectCooldown: true });

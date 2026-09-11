@@ -41,7 +41,6 @@ export const startTestServer = async (environment = {}) => {
       ...process.env,
       HOSTNAME: "127.0.0.1",
       PORT: String(port),
-      NEKI_ADMIN_DATABASE_PATH: ":memory:",
       ...environment,
     },
     stdio: ["ignore", "pipe", "pipe"],
