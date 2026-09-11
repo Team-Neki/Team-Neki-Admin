@@ -64,7 +64,7 @@ NEKI 클라이언트가 Amplitude로 전송하는 커스텀 이벤트를 운영�
 - 실제 API 연결 시 이벤트명, 영역, 화면, 트리거, 설명, 파라미터를 화면 모델로 변환한다.
 - 지표 화면의 `새로고침`은 서버 API route를 통해 Amplitude Taxonomy의 전체 이벤트와 선택한 기간의 segmentation 수치, 일·주·월 단위 활성 사용자 데이터를 조회한다.
 - Amplitude Dashboard REST API 동시 요청 제한을 넘지 않도록 이벤트별 수치는 최대 5개 작업만 병렬로 조회한다.
-- Amplitude API Key와 Secret Key는 브라우저에 전달하지 않고 서버 실행 환경의 `NEKI_PROD_AMPLITUDE_API_KEY`, `NEKI_PROD_AMPLITUDE_SECRET_KEY`에서 읽는다. 이 화면은 NEKI_PROD 프로젝트만 조회한다.
+- 브라우저는 내부 API route만 호출한다. 추후 구현할 관리자 백엔드 endpoint는 서버 실행 환경의 `NEKI_ADMIN_ANALYTICS_API_URL`로 연결한다.
 - 키가 없거나 Amplitude 조회가 실패하면 목록을 유지한 채 수집 오류 상태를 표시한다.
 - 내부 enum 이름이나 분석 저장소의 원본 필드명은 화면 계약으로 고정하지 않는다.
 - 이벤트 로그 수치, 기간별 차트, CSV 다운로드는 별도 분석 기능으로 범위에서 제외한다.

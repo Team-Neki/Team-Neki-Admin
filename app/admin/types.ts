@@ -190,11 +190,6 @@ export type AnalyticsRefreshResult = {
   periodEnd: string;
   events: AnalyticsEventMetric[];
   activeUsers: AnalyticsActiveUserPoint[];
-  cache: {
-    storedDays: number;
-    refreshedDays: number;
-    finalizedDays: number;
-  };
 };
 
 export type QrParsingRule = {

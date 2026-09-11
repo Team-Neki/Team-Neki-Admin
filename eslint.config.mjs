@@ -11,13 +11,7 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
-    ".openai/**",
-    ".product-design/**",
-    ".lazyweb/**",
     "dist/**",
-    "vite.config.ts",
-    "worker/**",
-    "worker-configuration.d.ts",
     "next-env.d.ts",
   ]),
   {

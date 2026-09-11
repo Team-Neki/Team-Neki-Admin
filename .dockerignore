@@ -1,7 +1,6 @@
 .git
 .gitignore
 .next
-.data
 .env*
 !.env.local.example
 .codex

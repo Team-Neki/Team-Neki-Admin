@@ -34,14 +34,14 @@ test("server-renders the Neki Admin operations shell and loading state", async (
 });
 
 test("keeps the Neki design foundation and API adapter boundary explicit", async () => {
-  const [page, adminApp, adapterEntry, apiAdapter, amplitudeRoute, dashboardRoute, amplitudeClient, mockAdapter, mockData, types, css, layout, packageJson, mockAnalytics, dbSchema, databaseAdapter, nextConfig, dockerfile, cachePolicy, analyticsMigration] = await Promise.all([
+  const [page, adminApp, adapterEntry, apiAdapter, amplitudeRoute, dashboardRoute, adminApiProxy, mockAdapter, mockData, types, css, layout, packageJson, mockAnalytics, nextConfig, dockerfile] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/AdminApp.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/admin-adapter.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/api-admin-adapter.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/amplitude/metrics/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/amplitude/dashboard/route.ts", import.meta.url), "utf8"),
-    readFile(new URL("../app/api/amplitude/amplitude-client.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/admin-api/admin-api-proxy.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/mock-admin-adapter.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/mock-admin-data.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/types.ts", import.meta.url), "utf8"),
@@ -49,12 +49,8 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/mock-analytics-events.ts", import.meta.url), "utf8"),
-    readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
-    readFile(new URL("../db/index.ts", import.meta.url), "utf8"),
     readFile(new URL("../next.config.ts", import.meta.url), "utf8"),
     readFile(new URL("../Dockerfile", import.meta.url), "utf8"),
-    readFile(new URL("../app/api/amplitude/metrics/analytics-cache-policy.ts", import.meta.url), "utf8"),
-    readFile(new URL("../drizzle/0000_living_gwen_stacy.sql", import.meta.url), "utf8"),
   ]);
   const [localStorageSource, analyticsScreen, analyticsHook, analyticsModel, adminPageHeader] = await Promise.all([
     readFile(new URL("../app/admin/local-admin-storage.ts", import.meta.url), "utf8"),
@@ -131,51 +127,22 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(apiAdapter, /fetch\(`\/api\/amplitude\/metrics\?\$\{params\.toString\(\)\}`/);
   assert.match(apiAdapter, /fetch\(`\/api\/amplitude\/dashboard\?/);
   assert.match(apiAdapter, /fetch\(`\/api\/group-account\/transactions\?/);
-  assert.match(dashboardRoute, /\/api\/2\/users/);
-  assert.match(dashboardRoute, /m: "active"/);
-  assert.match(dashboardRoute, /m: "new"/);
-  assert.match(dashboardRoute, /from "\.\.\/amplitude-client"/);
-  assert.match(dashboardRoute, /g: "platform"/);
+  assert.match(dashboardRoute, /proxyAdminApiGet/);
+  assert.match(dashboardRoute, /NEKI_ADMIN_DASHBOARD_API_URL/);
   assert.match(dashboardRoute, /rangeStartDate/);
   assert.match(dashboardRoute, /rangeEndDate/);
-  assert.match(dashboardRoute, /METRICS_CACHE_TTL_MS = 60_000/);
-  assert.match(amplitudeClient, /NEKI_PROD_AMPLITUDE_API_KEY/);
-  assert.match(amplitudeClient, /NEKI_PROD_AMPLITUDE_SECRET_KEY/);
-  assert.match(amplitudeClient, /RESPONSE_CACHE_MAX_ENTRIES = 64/);
-  assert.match(amplitudeClient, /REQUEST_TIMEOUT_MS = 20_000/);
-  assert.match(amplitudeClient, /const responseInFlight/);
-  assert.match(amplitudeClient, /cachedAmplitudeRequest/);
-  assert.match(dashboardRoute, /const isExplicitRange = granularity === "range"/);
-  assert.match(dashboardRoute, /const queryConfigs = metricConfigs\.map\(\(config\) => \{[\s\S]*Math\.ceil\(rangeDays \/ config\.interval\)[\s\S]*config\.key !== activeMetricKey[\s\S]*points: 1/);
   assert.match(apiAdapter, /const normalizeDashboardAnchor/);
   assert.match(apiAdapter, /query\.rangeStartDate && query\.rangeEndDate/);
   assert.doesNotMatch(dashboardRoute, /fallback|mockAdminAdapter/);
-  assert.match(amplitudeRoute, /from "\.\.\/amplitude-client"/);
-  assert.match(amplitudeRoute, /\/api\/2\/taxonomy\/event/);
-  assert.match(amplitudeRoute, /\/api\/2\/events\/segmentation/);
-  assert.match(amplitudeRoute, /\/api\/2\/users/);
+  assert.match(amplitudeRoute, /proxyAdminApiGet/);
+  assert.match(amplitudeRoute, /NEKI_ADMIN_ANALYTICS_API_URL/);
   assert.match(amplitudeRoute, /granularity/);
-  assert.match(amplitudeRoute, /analytics_daily_event_metrics/);
-  assert.match(amplitudeRoute, /analytics_daily_statuses/);
-  assert.match(amplitudeRoute, /analytics_range_snapshots/);
-  assert.match(amplitudeRoute, /isAnalyticsStatusReusable/);
-  assert.match(amplitudeRoute, /isAnalyticsRangeSnapshotReusable/);
-  assert.match(amplitudeRoute, /collectionWindows/);
-  assert.match(amplitudeRoute, /event_type: "_all"/);
-  assert.match(amplitudeRoute, /event_type_value/);
-  assert.doesNotMatch(amplitudeRoute, /fetchPairedEventMetrics|amplitudeQueryEventName|withConcurrency|aggregateEventMetricsSupported/);
-  assert.match(amplitudeClient, /AMPLITUDE_TIME_ZONE/);
-  assert.match(cachePolicy, /if \(date < today\) return status\.finalized/);
-  assert.match(cachePolicy, /ANALYTICS_LIVE_CACHE_TTL_MS = 60_000/);
-  assert.match(dbSchema, /analyticsDailyEventMetrics/);
-  assert.match(dbSchema, /analyticsDailyStatuses/);
-  assert.match(dbSchema, /analyticsRangeSnapshots/);
-  assert.match(databaseAdapter, /node:sqlite/);
-  assert.match(databaseAdapter, /NEKI_ADMIN_DATABASE_PATH/);
+  assert.match(adminApiProxy, /REQUEST_TIMEOUT_MS = 20_000/);
+  assert.match(adminApiProxy, /admin_api_not_configured/);
+  assert.match(adminApiProxy, /cache: "no-store"/);
+  assert.doesNotMatch(adminApiProxy, /sqlite|cloudflare:workers|D1Database/i);
   assert.match(nextConfig, /output: "standalone"/);
   assert.match(dockerfile, /\.next\/standalone/);
-  assert.match(analyticsMigration, /CREATE TABLE `analytics_daily_event_metrics`/);
-  assert.match(analyticsMigration, /CREATE TABLE `analytics_range_snapshots`/);
   assert.match(adminApp, /function QrParsingScreen/);
   assert.match(adminApp, /Android 파싱 로직/);
   assert.match(adminApp, /WebView 진입 즉시/);
