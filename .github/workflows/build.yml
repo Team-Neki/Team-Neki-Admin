@@ -1,0 +1,124 @@
+# main 에 merge 되면 이미지를 GHCR 에 올리고 GitOps 레포의 태그를 갱신한다.
+#
+#   merge -> 이미지 빌드/푸시 -> GitOps image 태그 커밋 -> ArgoCD 가 neki-admin-web 롤링
+#
+# 이 워크플로의 첫 성공 실행이 ghcr.io/team-neki/neki-admin-web 패키지를 생성한다.
+# 생성된 패키지는 기본적으로 private 이므로, 클러스터가 pull 하려면 패키지 설정에서
+# visibility 를 public 으로 바꾸거나 GitOps 쪽에 imagePullSecret 을 넣어야 한다.
+name: build
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+  workflow_dispatch:
+
+# GitOps 를 건드리는 스텝과 :main 태그는 github.ref 로 main 에서만 돌게 막아 두었다.
+# push 트리거는 main 뿐이지만 workflow_dispatch 는 아무 브랜치에서나 실행할 수 있고,
+# 그때 브랜치 빌드가 prod 의 이미지 태그를 옮기면 머지되지 않은 코드가 배포된다.
+permissions:
+  contents: read
+  packages: write
+
+# GitOps 커밋이 겹치면 rebase 로 풀리지 않는 충돌이 나므로 직렬화한다.
+concurrency:
+  group: build-main
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/team-neki/neki-admin-web
+  GITOPS_REPO: Team-Neki/Team-Neki-GitOps
+  GITOPS_PATH: overlays/prod/admin-web-deployment.yaml
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # 조직 secret 이 이 저장소에 열려 있지 않으면 아래 GitOps checkout 이
+      # "Input required and not supplied: token" 으로만 끝나 원인이 드러나지 않는다.
+      # 이미지를 밀기 전에 막아 GitOps 가 가리키지 않는 태그를 남기지 않는다.
+      - name: Check GitOps token
+        if: github.ref == 'refs/heads/main'
+        env:
+          GITOPS_PAT: ${{ secrets.GITOPS_PAT }}
+        run: |
+          test -n "$GITOPS_PAT" || {
+            echo "::error::GITOPS_PAT 가 이 저장소에서 보이지 않는다. Team-Neki 조직 secret 을 이 저장소(Team-Neki-Admin)에 열어야 한다."
+            exit 1
+          }
+
+      # 태그는 <package.json version>-<sha7>. main 태그도 같이 올려 최신을 가리킨다.
+      - name: Resolve image tag
+        id: tag
+        run: |
+          version=$(jq -r .version package.json)
+          test -n "$version" -a "$version" != "null" || {
+            echo "::error::package.json 에서 version 을 읽지 못했다."
+            exit 1
+          }
+          echo "tag=${version}-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build and push
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          docker build -t "$IMAGE:$TAG" .
+          docker push "$IMAGE:$TAG"
+
+      # :main 은 "prod 가 가리키는 이미지" 를 뜻하므로 main 빌드에서만 옮긴다.
+      - name: Push main tag
+        if: github.ref == 'refs/heads/main'
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          docker tag "$IMAGE:$TAG" "$IMAGE:main"
+          docker push "$IMAGE:main"
+
+      # GITOPS_PAT: Team-Neki 조직 secret. GitOps 레포에 contents:write 권한이 있는 PAT 로
+      # 다른 저장소 CI 와 같은 것을 쓴다. 조직 설정에서 이 저장소에 열려 있어야 한다.
+      - uses: actions/checkout@v5
+        if: github.ref == 'refs/heads/main'
+        with:
+          repository: ${{ env.GITOPS_REPO }}
+          token: ${{ secrets.GITOPS_PAT }}
+          path: gitops
+
+      - name: Update image tag in GitOps repo
+        if: github.ref == 'refs/heads/main'
+        working-directory: gitops
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          # sed 는 대상을 못 찾아도 조용히 성공한다. 갱신 전 참조 개수를 세어 두고
+          # 갱신 뒤 그 개수만큼 새 태그가 됐는지 대조하는 것이 유일한 안전장치다.
+          # 한 줄만 바뀌고 다른 줄이 남으면 컨테이너마다 버전이 갈린 채 배포된다.
+          before=$(grep -cE "^[[:space:]]*image: $IMAGE:" "$GITOPS_PATH" || true)
+          test "$before" -ge 1 || {
+            echo "::error::$GITOPS_PATH 에서 $IMAGE 참조를 찾지 못했다."
+            exit 1
+          }
+          sed -i -E "s#^([[:space:]]*image: )$IMAGE:.*#\\1$IMAGE:$TAG#" "$GITOPS_PATH"
+          after=$(grep -cE "^[[:space:]]*image: $IMAGE:$TAG$" "$GITOPS_PATH" || true)
+          test "$after" = "$before" || {
+            echo "::error::$IMAGE 참조 $before 개 중 $after 개만 $TAG 로 갱신됐다."
+            exit 1
+          }
+          if git diff --quiet; then
+            echo "already at $TAG"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore(prod): update image to $TAG"
+          # 다른 레포의 CI 도 같은 GitOps 레포에 커밋하므로 push 직전에 rebase 한다.
+          for i in 1 2 3; do
+            git pull --rebase && git push && exit 0
+            sleep $((i * 5))
+          done
+          exit 1
