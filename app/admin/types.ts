@@ -208,8 +208,20 @@ export type QrParsingRule = {
 
 export type GroupAccountDirection = "all" | "in" | "out";
 
+export type GroupAccountOption = {
+  id: string;
+  bankName: string;
+  accountAlias: string | null;
+  accountNumberMasked: string;
+};
+
 export type GroupAccountStatus =
   | { state: "unconfigured"; message: string }
+  | { state: "authorization_error"; message: string }
+  | {
+      state: "selection_required";
+      accounts: GroupAccountOption[];
+    }
   | {
       state: "connected";
       accountLabel: string;

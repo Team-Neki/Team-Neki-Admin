@@ -5,6 +5,11 @@ import type {
   GroupAccountTransaction,
   GroupAccountTransactionsResponse,
 } from "../../admin/types";
+import {
+  accountSelectionId,
+  readOpenBankingAuthorizationError,
+  readOpenBankingCredential,
+} from "./open-banking-credential-store";
 
 const PAGE_SIZE = 25;
 const TRACE_CACHE_MAX_ENTRIES = 128;
@@ -32,11 +37,18 @@ export const getGroupAccountRuntime = async (): Promise<GroupAccountRuntime> => 
     return typeof value === "string" ? value.trim() : "";
   };
 
+  const storedCredential = readOpenBankingCredential();
+  const useStoredCredential = Boolean(
+    storedCredential?.selectedFintechUseNumber && storedCredential.expiresAt > Date.now(),
+  );
+
   return {
     mode: read("GROUP_ACCOUNT_DATA_MODE").toLowerCase() === "mock" ? "mock" : "live",
     baseUrl: read("OPENBANKING_BASE_URL").replace(/\/$/, ""),
-    accessToken: read("OPENBANKING_ACCESS_TOKEN"),
-    fintechUseNumber: read("OPENBANKING_FINTECH_USE_NUM"),
+    accessToken: useStoredCredential ? storedCredential?.accessToken ?? "" : read("OPENBANKING_ACCESS_TOKEN"),
+    fintechUseNumber: useStoredCredential
+      ? storedCredential?.selectedFintechUseNumber ?? ""
+      : read("OPENBANKING_FINTECH_USE_NUM"),
     bankTranId: read("OPENBANKING_BANK_TRAN_ID"),
   };
 };
@@ -205,6 +217,33 @@ export const getGroupAccountStatus = async (): Promise<GroupAccountStatus> => {
       lastSyncedAt: new Date().toISOString(),
     };
   }
+  const credential = readOpenBankingCredential();
+  if (credential) {
+    if (credential.expiresAt <= Date.now()) {
+      return { state: "authorization_error", message: "계좌 연결이 만료되었습니다." };
+    }
+    const eligibleAccounts = credential.accounts.filter((account) => account.inquiryEnabled);
+    const selectedAccount = eligibleAccounts.find(
+      (account) => account.fintechUseNumber === credential.selectedFintechUseNumber,
+    );
+    if (!selectedAccount) {
+      return {
+        state: "selection_required",
+        accounts: eligibleAccounts.map((account) => ({
+          id: accountSelectionId(account.fintechUseNumber),
+          bankName: account.bankName,
+          accountAlias: account.accountAlias,
+          accountNumberMasked: account.accountNumberMasked,
+        })),
+      };
+    }
+    const label = [selectedAccount.bankName, selectedAccount.accountAlias, selectedAccount.accountNumberMasked]
+      .filter(Boolean)
+      .join(" · ");
+    return { state: "connected", accountLabel: label, lastSyncedAt: null };
+  }
+  const authorizationError = readOpenBankingAuthorizationError();
+  if (authorizationError) return { state: "authorization_error", message: authorizationError };
   if (!runtime.baseUrl || !runtime.accessToken || !runtime.fintechUseNumber || !runtime.bankTranId) {
     return { state: "unconfigured", message: "계좌 연결 정보가 없습니다." };
   }

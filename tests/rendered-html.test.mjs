@@ -52,12 +52,13 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
     readFile(new URL("../next.config.ts", import.meta.url), "utf8"),
     readFile(new URL("../Dockerfile", import.meta.url), "utf8"),
   ]);
-  const [localStorageSource, analyticsScreen, analyticsHook, analyticsModel, adminPageHeader] = await Promise.all([
+  const [localStorageSource, analyticsScreen, analyticsHook, analyticsModel, adminPageHeader, groupAccountScreen] = await Promise.all([
     readFile(new URL("../app/admin/local-admin-storage.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/features/analytics/ui/AnalyticsScreen.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/features/analytics/model/useAnalyticsMetrics.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/features/analytics/model/analytics.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/shared/ui/AdminPageHeader.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/admin/features/group-account/ui/GroupAccountScreen.tsx", import.meta.url), "utf8"),
   ]);
 
   assert.match(page, /AdminApp/);
@@ -107,8 +108,10 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(analyticsScreen, /title: "기능 영역"[\s\S]*sorter: \(a, b\) => a\.area\.localeCompare/);
   assert.match(analyticsScreen, /title: "선택 기간 발생"[\s\S]*sorter: \(a, b\) => \(metricByName\.get\(a\.name\)\?\.total/);
   assert.match(analyticsScreen, /title: "고유 사용자"[\s\S]*sorter: \(a, b\) => \(metricByName\.get\(a\.name\)\?\.uniques/);
-  assert.match(adminApp, /function GroupAccountScreen/);
-  assert.match(adminApp, /계좌 연결 정보가 없습니다/);
+  assert.match(adminApp, /from "\.\/features\/group-account"/);
+  assert.doesNotMatch(adminApp, /function GroupAccountScreen/);
+  assert.match(groupAccountScreen, /href="\/api\/group-account\/connect"/);
+  assert.match(groupAccountScreen, /action="\/api\/group-account\/account-selection"/);
   assert.doesNotMatch(adminApp, /<span>\{record\.platform\} · \{record\.sourceFile\}<\/span>/);
   assert.match(analyticsScreen, /<Title level=\{3\}>Amplitude 지표<\/Title>/);
   assert.doesNotMatch(analyticsScreen, /GA4/);

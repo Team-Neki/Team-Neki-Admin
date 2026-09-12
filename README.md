@@ -28,7 +28,7 @@
 
 백엔드가 준비되면 `.env.local` 또는 배포 환경의 `NEKI_ADMIN_DASHBOARD_API_URL`, `NEKI_ADMIN_ANALYTICS_API_URL`에 전체 endpoint URL을 설정합니다. 응답은 `app/admin/types.ts`의 `DashboardMetrics`, `AnalyticsRefreshResult` 화면 계약에 맞춥니다. 주소가 없으면 화면은 API 미연결 상태를 표시합니다.
 
-모임통장은 기본적으로 `연결 전` 상태이며, `GROUP_ACCOUNT_DATA_MODE=mock`을 명시한 개발 환경에서만 고정 목 데이터를 반환합니다. 실제 거래내역은 금융결제원 오픈뱅킹 이용기관 승인, 계좌 명의자 동의, 제공기관별 거래내역 API 권한과 서버 측 토큰 보관이 모두 준비된 뒤 `OPENBANKING_BASE_URL`, `OPENBANKING_ACCESS_TOKEN`, `OPENBANKING_FINTECH_USE_NUM`, `OPENBANKING_BANK_TRAN_ID`를 서버 환경에 설정해야 합니다. 토큰과 계좌 식별자는 브라우저나 `localStorage`에 저장하지 않습니다. 실제 토스 모임통장 지원 여부와 필드 계약은 이용기관·제공기관 확인 후 어댑터에 반영합니다.
+모임통장은 기본적으로 `연결 전` 상태이며, `GROUP_ACCOUNT_DATA_MODE=mock`을 명시한 개발 환경에서만 고정 목 데이터를 반환합니다. OAuth 연결에는 `OPENBANKING_BASE_URL`, `OPENBANKING_CLIENT_ID`, `OPENBANKING_CLIENT_SECRET`, `OPENBANKING_REDIRECT_URI`, `OPENBANKING_BANK_TRAN_ID`를 서버 환경에 설정하고, 금융결제원 API Key 관리에 동일한 Redirect URL을 등록합니다. 콜백 경로는 `/api/group-account/oauth/callback`입니다. 인증 토큰은 현재 서버 프로세스 메모리에만 유지되므로 서버 재시작·다중 인스턴스 운영 전에는 영구 비밀 저장소 adapter로 교체해야 합니다. 기존에 발급한 토큰을 직접 설정하는 `OPENBANKING_ACCESS_TOKEN`, `OPENBANKING_FINTECH_USE_NUM` 방식도 유지합니다. 토큰과 계좌 식별자는 브라우저나 `localStorage`에 저장하지 않습니다.
 
 렌더 검증용으로 URL에 `state=empty` 또는 `state=error`를 추가하면 목록의 빈 화면과 조회 오류 상태를 재현할 수 있습니다.
 
@@ -80,6 +80,11 @@ npm run lint
 - `app/api/amplitude/metrics/route.ts`: Amplitude 지표 endpoint 연결 route
 - `app/api/amplitude/dashboard/route.ts`: 대시보드 지표 endpoint 연결 route
 - `app/api/group-account/group-account-server.ts`: 오픈뱅킹 거래내역 어댑터·정규화·목 모드 경계
+- `app/api/group-account/open-banking-oauth-server.ts`: OAuth URL 생성·토큰 교환·등록 계좌 조회
+- `app/api/group-account/open-banking-credential-store.ts`: 서버 메모리 기반 인증정보 저장 경계
+- `app/api/group-account/connect/route.ts`: 오픈뱅킹 인증 시작 route
+- `app/api/group-account/oauth/callback/route.ts`: Redirect URL callback route
+- `app/api/group-account/account-selection/route.ts`: 조회 계좌 선택 route
 - `app/api/group-account/status/route.ts`: 모임통장 연결 상태 route
 - `app/api/group-account/transactions/route.ts`: 모임통장 거래내역 조회 route
 - `app/admin/mock-admin-data.ts`: 검색·필터·페이지네이션 검증용 프로토타입 시드 데이터
