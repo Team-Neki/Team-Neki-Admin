@@ -8,6 +8,7 @@ let mockServer;
 let oauthServer;
 let providerServer;
 let tokenRequestBody = "";
+const bankTransactionIds = [];
 
 const startProviderServer = () => new Promise((resolve, reject) => {
   const server = createServer(async (request, response) => {
@@ -39,6 +40,13 @@ const startProviderServer = () => new Promise((resolve, reject) => {
       }));
       return;
     }
+    if (request.url?.startsWith("/v2.0/account/transaction_list/fin_num?")) {
+      const transactionUrl = new URL(request.url, "http://provider.test");
+      bankTransactionIds.push(transactionUrl.searchParams.get("bank_tran_id"));
+      response.setHeader("content-type", "application/json");
+      response.end(JSON.stringify({ rsp_code: "A0000", next_page_yn: "N", res_list: [] }));
+      return;
+    }
     response.statusCode = 404;
     response.end();
   });
@@ -68,7 +76,7 @@ test.before(async () => {
     OPENBANKING_CLIENT_ID: "test-client-id",
     OPENBANKING_CLIENT_SECRET: "test-client-secret",
     OPENBANKING_REDIRECT_URI: "https://admin.neki.test/api/group-account/oauth/callback",
-    OPENBANKING_BANK_TRAN_ID: "M202609120000000000001",
+    OPENBANKING_CLIENT_USE_CODE: "M202609120",
     OPENBANKING_ACCESS_TOKEN: "",
     OPENBANKING_FINTECH_USE_NUM: "",
   });
@@ -124,4 +132,12 @@ test("completes OAuth on the server without exposing the client secret", async (
     accountLabel: "토스뱅크 · 네키 모임통장 · 1000***1234",
     lastSyncedAt: null,
   });
+
+  const transactionQueries = ["all", "in"].map((direction) =>
+    fetch(`${oauthServer.baseUrl}/api/group-account/transactions?from=2026-09-01&to=2026-09-12&direction=${direction}&page=1`));
+  const transactionResponses = await Promise.all(transactionQueries);
+  assert.deepEqual(transactionResponses.map((response) => response.status), [200, 200]);
+  assert.equal(bankTransactionIds.length, 2);
+  assert.match(bankTransactionIds[0], /^M202609120U[A-F0-9]{9}$/);
+  assert.notEqual(bankTransactionIds[0], bankTransactionIds[1]);
 });

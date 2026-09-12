@@ -28,7 +28,7 @@
 
 백엔드가 준비되면 `.env.local` 또는 배포 환경의 `NEKI_ADMIN_DASHBOARD_API_URL`, `NEKI_ADMIN_ANALYTICS_API_URL`에 전체 endpoint URL을 설정합니다. 응답은 `app/admin/types.ts`의 `DashboardMetrics`, `AnalyticsRefreshResult` 화면 계약에 맞춥니다. 주소가 없으면 화면은 API 미연결 상태를 표시합니다.
 
-모임통장은 기본적으로 `연결 전` 상태이며, `GROUP_ACCOUNT_DATA_MODE=mock`을 명시한 개발 환경에서만 고정 목 데이터를 반환합니다. OAuth 연결에는 `OPENBANKING_BASE_URL`, `OPENBANKING_CLIENT_ID`, `OPENBANKING_CLIENT_SECRET`, `OPENBANKING_REDIRECT_URI`, `OPENBANKING_BANK_TRAN_ID`를 서버 환경에 설정하고, 금융결제원 API Key 관리에 동일한 Redirect URL을 등록합니다. 콜백 경로는 `/api/group-account/oauth/callback`입니다. 인증 토큰은 현재 서버 프로세스 메모리에만 유지되므로 서버 재시작·다중 인스턴스 운영 전에는 영구 비밀 저장소 adapter로 교체해야 합니다. 기존에 발급한 토큰을 직접 설정하는 `OPENBANKING_ACCESS_TOKEN`, `OPENBANKING_FINTECH_USE_NUM` 방식도 유지합니다. 토큰과 계좌 식별자는 브라우저나 `localStorage`에 저장하지 않습니다.
+모임통장은 기본적으로 `연결 전` 상태이며, `GROUP_ACCOUNT_DATA_MODE=mock`을 명시한 개발 환경에서만 고정 목 데이터를 반환합니다. OAuth 연결에는 `OPENBANKING_BASE_URL`, `OPENBANKING_CLIENT_ID`, `OPENBANKING_CLIENT_SECRET`, `OPENBANKING_REDIRECT_URI`, `OPENBANKING_CLIENT_USE_CODE`를 서버 환경에 설정하고, 금융결제원 API Key 관리에 동일한 Redirect URL을 등록합니다. 콜백 경로는 `/api/group-account/oauth/callback`입니다. `bank_tran_id`는 이용기관코드와 요청별 고유값으로 서버가 생성합니다. 인증 토큰은 현재 서버 프로세스 메모리에만 유지되므로 서버 재시작·다중 인스턴스 운영 전에는 영구 비밀 저장소 adapter로 교체해야 합니다. 기존에 발급한 토큰을 직접 설정하는 `OPENBANKING_ACCESS_TOKEN`, `OPENBANKING_FINTECH_USE_NUM` 방식도 유지합니다. 토큰과 계좌 식별자는 브라우저나 `localStorage`에 저장하지 않습니다.
 
 렌더 검증용으로 URL에 `state=empty` 또는 `state=error`를 추가하면 목록의 빈 화면과 조회 오류 상태를 재현할 수 있습니다.
 

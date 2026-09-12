@@ -1,3 +1,5 @@
+import { randomBytes } from "node:crypto";
+
 import { normalizeOpenBankingTransaction } from "../../admin/group-account-adapter";
 import type {
   GroupAccountQuery,
@@ -21,7 +23,7 @@ export type GroupAccountRuntime = {
   baseUrl: string;
   accessToken: string;
   fintechUseNumber: string;
-  bankTranId: string;
+  clientUseCode: string;
 };
 
 export class GroupAccountProviderError extends Error {
@@ -49,7 +51,7 @@ export const getGroupAccountRuntime = async (): Promise<GroupAccountRuntime> => 
     fintechUseNumber: useStoredCredential
       ? storedCredential?.selectedFintechUseNumber ?? ""
       : read("OPENBANKING_FINTECH_USE_NUM"),
-    bankTranId: read("OPENBANKING_BANK_TRAN_ID"),
+    clientUseCode: read("OPENBANKING_CLIENT_USE_CODE"),
   };
 };
 
@@ -117,11 +119,18 @@ const providerResponseStatus = (payload: unknown): string | null => {
 const transactionTraceKey = (runtime: GroupAccountRuntime, query: GroupAccountQuery, page: number) =>
   `${runtime.fintechUseNumber}:${query.from}:${query.to}:${query.direction}:${page}`;
 
+export const createBankTransactionId = (clientUseCode: string) => {
+  if (!/^[A-Za-z0-9]{10}$/.test(clientUseCode)) {
+    throw new GroupAccountProviderError(503, "오픈뱅킹 이용기관코드를 확인해 주세요.");
+  }
+  return `${clientUseCode}U${randomBytes(8).toString("hex").slice(0, 9).toUpperCase()}`;
+};
+
 const loadLiveTransactions = async (
   query: GroupAccountQuery,
   runtime: GroupAccountRuntime,
 ): Promise<GroupAccountTransactionsResponse> => {
-  if (!runtime.baseUrl || !runtime.accessToken || !runtime.fintechUseNumber || !runtime.bankTranId) {
+  if (!runtime.baseUrl || !runtime.accessToken || !runtime.fintechUseNumber || !runtime.clientUseCode) {
     throw new GroupAccountProviderError(503, "계좌 연결 정보가 없습니다.");
   }
 
@@ -148,7 +157,7 @@ const loadLiveTransactions = async (
     throw new GroupAccountProviderError(502, "다음 거래내역 페이지를 준비하지 못했습니다. 다시 조회해 주세요.");
   }
   const params = new URLSearchParams({
-    bank_tran_id: runtime.bankTranId,
+    bank_tran_id: createBankTransactionId(runtime.clientUseCode),
     fintech_use_num: runtime.fintechUseNumber,
     inquiry_type: inquiryType,
     inquiry_base: "D",
@@ -244,7 +253,7 @@ export const getGroupAccountStatus = async (): Promise<GroupAccountStatus> => {
   }
   const authorizationError = readOpenBankingAuthorizationError();
   if (authorizationError) return { state: "authorization_error", message: authorizationError };
-  if (!runtime.baseUrl || !runtime.accessToken || !runtime.fintechUseNumber || !runtime.bankTranId) {
+  if (!runtime.baseUrl || !runtime.accessToken || !runtime.fintechUseNumber || !runtime.clientUseCode) {
     return { state: "unconfigured", message: "계좌 연결 정보가 없습니다." };
   }
   return { state: "connected", accountLabel: "토스 모임통장", lastSyncedAt: null };
