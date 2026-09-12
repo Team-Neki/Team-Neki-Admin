@@ -9,13 +9,14 @@ name: build
 
 on:
   push:
-    # feat/ghcr-build 는 파이프라인을 main 머지 전에 실제로 돌려보려고 한시적으로 넣었다.
-    # 검증이 끝나면 이 항목만 지워 [main] 으로 되돌린다.
-    branches: [main, feat/ghcr-build]
+    branches: [main]
     paths-ignore:
       - "**.md"
   workflow_dispatch:
 
+# GitOps 를 건드리는 스텝과 :main 태그는 github.ref 로 main 에서만 돌게 막아 두었다.
+# push 트리거는 main 뿐이지만 workflow_dispatch 는 아무 브랜치에서나 실행할 수 있고,
+# 그때 브랜치 빌드가 prod 의 이미지 태그를 옮기면 머지되지 않은 코드가 배포된다.
 permissions:
   contents: read
   packages: write
