@@ -9,7 +9,9 @@ name: build
 
 on:
   push:
-    branches: [main]
+    # feat/ghcr-build 는 파이프라인을 main 머지 전에 실제로 돌려보려고 한시적으로 넣었다.
+    # 검증이 끝나면 이 항목만 지워 [main] 으로 되돌린다.
+    branches: [main, feat/ghcr-build]
     paths-ignore:
       - "**.md"
   workflow_dispatch:
@@ -38,6 +40,7 @@ jobs:
       # "Input required and not supplied: token" 으로만 끝나 원인이 드러나지 않는다.
       # 이미지를 밀기 전에 막아 GitOps 가 가리키지 않는 태그를 남기지 않는다.
       - name: Check GitOps token
+        if: github.ref == 'refs/heads/main'
         env:
           GITOPS_PAT: ${{ secrets.GITOPS_PAT }}
         run: |
@@ -64,19 +67,29 @@ jobs:
         env:
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
-          docker build -t "$IMAGE:$TAG" -t "$IMAGE:main" .
+          docker build -t "$IMAGE:$TAG" .
           docker push "$IMAGE:$TAG"
+
+      # :main 은 "prod 가 가리키는 이미지" 를 뜻하므로 main 빌드에서만 옮긴다.
+      - name: Push main tag
+        if: github.ref == 'refs/heads/main'
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          docker tag "$IMAGE:$TAG" "$IMAGE:main"
           docker push "$IMAGE:main"
 
       # GITOPS_PAT: Team-Neki 조직 secret. GitOps 레포에 contents:write 권한이 있는 PAT 로
       # 다른 저장소 CI 와 같은 것을 쓴다. 조직 설정에서 이 저장소에 열려 있어야 한다.
       - uses: actions/checkout@v5
+        if: github.ref == 'refs/heads/main'
         with:
           repository: ${{ env.GITOPS_REPO }}
           token: ${{ secrets.GITOPS_PAT }}
           path: gitops
 
       - name: Update image tag in GitOps repo
+        if: github.ref == 'refs/heads/main'
         working-directory: gitops
         env:
           TAG: ${{ steps.tag.outputs.tag }}
