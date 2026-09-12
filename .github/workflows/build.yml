@@ -1,6 +1,6 @@
 # main 에 merge 되면 이미지를 GHCR 에 올리고 GitOps 레포의 태그를 갱신한다.
 #
-#   merge -> 이미지 빌드/푸시 -> GitOps newTag 커밋 -> ArgoCD 가 neki-admin-web 롤링
+#   merge -> 이미지 빌드/푸시 -> GitOps image 태그 커밋 -> ArgoCD 가 neki-admin-web 롤링
 #
 # 이 워크플로의 첫 성공 실행이 ghcr.io/team-neki/neki-admin-web 패키지를 생성한다.
 # 생성된 패키지는 기본적으로 private 이므로, 클러스터가 pull 하려면 패키지 설정에서
@@ -28,7 +28,7 @@ concurrency:
 env:
   IMAGE: ghcr.io/team-neki/neki-admin-web
   GITOPS_REPO: Team-Neki/Team-Neki-GitOps
-  GITOPS_PATH: overlays/prod/kustomization.yaml
+  GITOPS_PATH: overlays/prod/admin-web-deployment.yaml
 
 jobs:
   build:
@@ -94,9 +94,20 @@ jobs:
         env:
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
-          yq -i '(.images[] | select(.name == strenv(IMAGE))).newTag = strenv(TAG)' "$GITOPS_PATH"
-          # 셀렉터가 이미지를 못 찾으면 파일이 그대로라 여기서 걸린다.
-          test "$(yq '.images[] | select(.name == strenv(IMAGE)) | .newTag' "$GITOPS_PATH")" = "$TAG"
+          # sed 는 대상을 못 찾아도 조용히 성공한다. 갱신 전 참조 개수를 세어 두고
+          # 갱신 뒤 그 개수만큼 새 태그가 됐는지 대조하는 것이 유일한 안전장치다.
+          # 한 줄만 바뀌고 다른 줄이 남으면 컨테이너마다 버전이 갈린 채 배포된다.
+          before=$(grep -cE "^[[:space:]]*image: $IMAGE:" "$GITOPS_PATH" || true)
+          test "$before" -ge 1 || {
+            echo "::error::$GITOPS_PATH 에서 $IMAGE 참조를 찾지 못했다."
+            exit 1
+          }
+          sed -i -E "s#^([[:space:]]*image: )$IMAGE:.*#\\1$IMAGE:$TAG#" "$GITOPS_PATH"
+          after=$(grep -cE "^[[:space:]]*image: $IMAGE:$TAG$" "$GITOPS_PATH" || true)
+          test "$after" = "$before" || {
+            echo "::error::$IMAGE 참조 $before 개 중 $after 개만 $TAG 로 갱신됐다."
+            exit 1
+          }
           if git diff --quiet; then
             echo "already at $TAG"
             exit 0
