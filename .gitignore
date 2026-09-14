@@ -31,6 +31,9 @@ yarn-error.log*
 .env*
 !.env.local.example
 
+# Kubernetes secrets are applied manually and never committed.
+**/admin-web-secret.yaml
+
 # vercel
 .vercel
 
