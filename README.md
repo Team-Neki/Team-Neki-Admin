@@ -24,9 +24,9 @@
 - 복수 조건 필터는 `Checkbox.Group`, 한 축의 보기 전환은 `Segmented`, 기준 기간 선택은 `DatePicker`, 목록 일괄 작업은 `Table.rowSelection`을 사용합니다. 데이터 목록은 열 `responsive`와 `scroll` 설정으로 화면 폭에 대응합니다.
 - 공식 문서: [For Agents](https://ant.design/docs/react/for-agents/) · [Checkbox](https://ant.design/components/checkbox/) · [DatePicker](https://ant.design/components/date-picker/) · [Segmented](https://ant.design/components/segmented/) · [Table](https://ant.design/components/table/) · [Theme](https://ant.design/docs/react/customize-theme/)
 
-운영 CRUD와 포즈 업로드는 `app/admin/mock-admin-data.ts`의 시드 데이터와 메모리 기반 adapter를 사용합니다. 대시보드와 Amplitude 지표 화면은 내부 API route를 호출하며, route는 추후 구현할 관리자 백엔드로 요청을 전달합니다. 포즈 업로드는 브라우저 메모리에만 저장되어 새로고침하면 초기화됩니다.
+운영 CRUD와 포즈 업로드는 `app/admin/mock-admin-data.ts`의 시드 데이터와 브라우저 저장 기반 adapter를 사용합니다. 대시보드와 Amplitude 지표 화면은 내부 API route를 통해 Amplitude Dashboard REST API를 직접 호출합니다.
 
-백엔드가 준비되면 `.env.local` 또는 배포 환경의 `NEKI_ADMIN_DASHBOARD_API_URL`, `NEKI_ADMIN_ANALYTICS_API_URL`에 전체 endpoint URL을 설정합니다. 응답은 `app/admin/types.ts`의 `DashboardMetrics`, `AnalyticsRefreshResult` 화면 계약에 맞춥니다. 주소가 없으면 화면은 API 미연결 상태를 표시합니다.
+Amplitude 연동에는 `AMPLITUDE_API_KEY`, `AMPLITUDE_SECRET_KEY`, `AMPLITUDE_REGION`, `AMPLITUDE_TIME_ZONE`, `AMPLITUDE_PROJECT_START_DATE`를 서버 환경에 설정합니다. API 키와 Secret은 브라우저로 전달하지 않습니다. 지표 API는 31개 이벤트를 `event_type`으로 묶어 총 발생과 고유 사용자를 각각 한 번에 조회하며, 대시보드는 활성·신규 사용자 API를 사용합니다. 동일 요청 병합, 1개 동시 호출 제한, 서버 캐시를 적용하고 실패 시 목 데이터로 대체하지 않습니다.
 
 모임통장은 기본적으로 `연결 전` 상태이며, `GROUP_ACCOUNT_DATA_MODE=mock`을 명시한 개발 환경에서만 고정 목 데이터를 반환합니다. OAuth 연결에는 `OPENBANKING_BASE_URL`, `OPENBANKING_CLIENT_ID`, `OPENBANKING_CLIENT_SECRET`, `OPENBANKING_REDIRECT_URI`, `OPENBANKING_CLIENT_USE_CODE`를 서버 환경에 설정하고, 금융결제원 API Key 관리에 동일한 Redirect URL을 등록합니다. 콜백 경로는 `/api/group-account/oauth/callback`입니다. `bank_tran_id`는 이용기관코드와 요청별 고유값으로 서버가 생성합니다. 인증 토큰은 현재 서버 프로세스 메모리에만 유지되므로 서버 재시작·다중 인스턴스 운영 전에는 영구 비밀 저장소 adapter로 교체해야 합니다. 기존에 발급한 토큰을 직접 설정하는 `OPENBANKING_ACCESS_TOKEN`, `OPENBANKING_FINTECH_USE_NUM` 방식도 유지합니다. 토큰과 계좌 식별자는 브라우저나 `localStorage`에 저장하지 않습니다.
 
@@ -76,9 +76,10 @@ npm run lint
 - `app/admin/AdminApp.tsx`: 공통 셸과 사용자 지표·수동 알림·부스·브랜드·포즈·지표·QR 파싱 화면
 - `app/admin/admin-adapter.ts`: mock/API 구현체를 선택하는 단일 조립 지점
 - `app/admin/api-admin-adapter.ts`: 지표·모임통장 조회 API와 기존 목 adapter를 조합하는 구현체
-- `app/api/admin-api/admin-api-proxy.ts`: 추후 구현할 관리자 백엔드로 요청을 전달하는 서버 전용 경계
-- `app/api/amplitude/metrics/route.ts`: Amplitude 지표 endpoint 연결 route
-- `app/api/amplitude/dashboard/route.ts`: 대시보드 지표 endpoint 연결 route
+- `app/api/admin-api/admin-api-proxy.ts`: 추후 운영 CRUD 백엔드 연결에 사용할 서버 전용 경계
+- `app/api/amplitude/amplitude-client.ts`: Amplitude 인증·직렬화·요청 캐시 경계
+- `app/api/amplitude/metrics/amplitude-metrics-server.ts`: 이벤트 발생·고유 사용자 집계
+- `app/api/amplitude/dashboard/amplitude-dashboard-server.ts`: DAU·WAU·MAU·플랫폼 집계
 - `app/api/group-account/group-account-server.ts`: 오픈뱅킹 거래내역 어댑터·정규화·목 모드 경계
 - `app/api/group-account/open-banking-oauth-server.ts`: OAuth URL 생성·토큰 교환·등록 계좌 조회
 - `app/api/group-account/open-banking-credential-store.ts`: 서버 메모리 기반 인증정보 저장 경계

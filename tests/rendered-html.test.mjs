@@ -34,13 +34,16 @@ test("server-renders the Neki Admin operations shell and loading state", async (
 });
 
 test("keeps the Neki design foundation and API adapter boundary explicit", async () => {
-  const [page, adminApp, adapterEntry, apiAdapter, amplitudeRoute, dashboardRoute, adminApiProxy, mockAdapter, mockData, types, css, layout, packageJson, mockAnalytics, nextConfig, dockerfile] = await Promise.all([
+  const [page, adminApp, adapterEntry, apiAdapter, amplitudeRoute, dashboardRoute, amplitudeClient, metricsServer, dashboardServer, adminApiProxy, mockAdapter, mockData, types, css, layout, packageJson, mockAnalytics, nextConfig, dockerfile] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/AdminApp.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/admin-adapter.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/api-admin-adapter.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/amplitude/metrics/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/amplitude/dashboard/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/amplitude/amplitude-client.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/amplitude/metrics/amplitude-metrics-server.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/amplitude/dashboard/amplitude-dashboard-server.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/admin-api/admin-api-proxy.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/mock-admin-adapter.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/mock-admin-data.ts", import.meta.url), "utf8"),
@@ -130,20 +133,27 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(apiAdapter, /fetch\(`\/api\/amplitude\/metrics\?\$\{params\.toString\(\)\}`/);
   assert.match(apiAdapter, /fetch\(`\/api\/amplitude\/dashboard\?/);
   assert.match(apiAdapter, /fetch\(`\/api\/group-account\/transactions\?/);
-  assert.match(dashboardRoute, /proxyAdminApiGet/);
-  assert.match(dashboardRoute, /NEKI_ADMIN_DASHBOARD_API_URL/);
+  assert.match(dashboardRoute, /getAmplitudeDashboard/);
   assert.match(dashboardRoute, /rangeStartDate/);
   assert.match(dashboardRoute, /rangeEndDate/);
   assert.match(apiAdapter, /const normalizeDashboardAnchor/);
   assert.match(apiAdapter, /query\.rangeStartDate && query\.rangeEndDate/);
   assert.doesNotMatch(dashboardRoute, /fallback|mockAdminAdapter/);
-  assert.match(amplitudeRoute, /proxyAdminApiGet/);
-  assert.match(amplitudeRoute, /NEKI_ADMIN_ANALYTICS_API_URL/);
+  assert.match(amplitudeRoute, /getAmplitudeMetrics/);
   assert.match(amplitudeRoute, /granularity/);
+  assert.match(amplitudeClient, /AMPLITUDE_API_KEY/);
+  assert.match(amplitudeClient, /AMPLITUDE_SECRET_KEY/);
+  assert.match(amplitudeClient, /REQUEST_CONCURRENCY = 1/);
+  assert.match(amplitudeClient, /responseInFlight/);
+  assert.match(metricsServer, /event_type: "_all"/);
+  assert.match(metricsServer, /event_type_value/);
+  assert.match(metricsServer, /fetchEventMetric\(input, "totals"\)/);
+  assert.match(metricsServer, /fetchEventMetric\(input, "uniques"\)/);
+  assert.match(dashboardServer, /loadAmplitudeUsers/);
+  assert.doesNotMatch(`${amplitudeRoute}\n${dashboardRoute}\n${amplitudeClient}\n${metricsServer}\n${dashboardServer}`, /sqlite|cloudflare:workers|D1Database/i);
   assert.match(adminApiProxy, /REQUEST_TIMEOUT_MS = 20_000/);
   assert.match(adminApiProxy, /admin_api_not_configured/);
   assert.match(adminApiProxy, /cache: "no-store"/);
-  assert.doesNotMatch(adminApiProxy, /sqlite|cloudflare:workers|D1Database/i);
   assert.match(nextConfig, /output: "standalone"/);
   assert.match(dockerfile, /\.next\/standalone/);
   assert.match(adminApp, /function QrParsingScreen/);
