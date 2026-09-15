@@ -43,6 +43,7 @@ next-env.d.ts
 
 # local tools and generated artifacts
 /.codex/
+/.data/
 /.lazyweb/
 /.product-design/
 /outputs/

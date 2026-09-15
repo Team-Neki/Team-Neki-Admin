@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { createServer } from "node:http";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
 import { startTestServer } from "./server-test-helper.mjs";
@@ -7,6 +11,8 @@ import { startTestServer } from "./server-test-helper.mjs";
 let providerServer;
 let unconfiguredServer;
 let configuredServer;
+let cacheDirectory;
+let configuredEnvironment;
 const providerRequests = [];
 
 const startProviderServer = () => new Promise((resolve, reject) => {
@@ -25,7 +31,8 @@ const startProviderServer = () => new Promise((resolve, reject) => {
         data: {
           seriesLabels: [[0, "app_open"], [0, "map_view"]],
           seriesCollapsed: [[{ value: metric === "totals" ? 42 : 7 }], [{ value: metric === "totals" ? 21 : 5 }]],
-          series: [[0, 0], [0, 0]],
+          series: metric === "totals" ? [[20, 22], [10, 11]] : [[4, 3], [3, 2]],
+          xValues: ["2026-09-01", "2026-09-02"],
         },
       }));
       return;
@@ -63,22 +70,26 @@ test.before(async () => {
   providerServer = await startProviderServer();
   const address = providerServer.address();
   const providerBaseUrl = `http://127.0.0.1:${address.port}`;
+  cacheDirectory = await mkdtemp(join(tmpdir(), "neki-amplitude-cache-"));
+  configuredEnvironment = {
+    AMPLITUDE_API_KEY: "test-api-key",
+    AMPLITUDE_SECRET_KEY: "test-secret-key",
+    AMPLITUDE_API_BASE_URL: providerBaseUrl,
+    AMPLITUDE_REGION: "us",
+    AMPLITUDE_TIME_ZONE: "Asia/Seoul",
+    AMPLITUDE_PROJECT_START_DATE: "2024-01-01",
+    AMPLITUDE_CACHE_DIR: cacheDirectory,
+  };
   [unconfiguredServer, configuredServer] = await Promise.all([
     startTestServer({ AMPLITUDE_API_KEY: "", AMPLITUDE_SECRET_KEY: "" }),
-    startTestServer({
-      AMPLITUDE_API_KEY: "test-api-key",
-      AMPLITUDE_SECRET_KEY: "test-secret-key",
-      AMPLITUDE_API_BASE_URL: providerBaseUrl,
-      AMPLITUDE_REGION: "us",
-      AMPLITUDE_TIME_ZONE: "Asia/Seoul",
-      AMPLITUDE_PROJECT_START_DATE: "2024-01-01",
-    }),
+    startTestServer(configuredEnvironment),
   ]);
 });
 
 test.after(async () => {
   await Promise.all([unconfiguredServer?.stop(), configuredServer?.stop()]);
   await new Promise((resolve) => providerServer?.close(resolve));
+  if (cacheDirectory) await rm(cacheDirectory, { recursive: true, force: true });
 });
 
 test("returns a clear error when Amplitude server credentials are missing", async () => {
@@ -104,6 +115,42 @@ test("loads all event totals and uniques with three Amplitude requests", async (
   assert.ok(requests.every((request) => request.authorization?.startsWith("Basic ")));
   assert.deepEqual(payload.events.find((event) => event.name === "app_open"), { name: "app_open", total: 42, uniques: 7 });
   assert.deepEqual(payload.activeUsers, [{ date: "2026-09-01", value: 12 }, { date: "2026-09-02", value: 18 }]);
+
+  const projectCacheKey = createHash("sha256").update("test-api-key").digest("hex").slice(0, 16);
+  const dailyPath = join(cacheDirectory, "daily", projectCacheKey, "2026-09-01.json");
+  const daily = JSON.parse(await readFile(dailyPath, "utf8"));
+  assert.equal(daily.finalized, true);
+  assert.equal(daily.projectCacheKey, projectCacheKey);
+  assert.deepEqual(daily.events.find((event) => event.name === "app_open"), {
+    name: "app_open",
+    total: 20,
+    uniques: 4,
+  });
+  assert.equal((await stat(dailyPath)).mode & 0o777, 0o600);
+  assert.doesNotMatch(JSON.stringify(daily), /test-api-key|test-secret-key/);
+
+  await configuredServer.stop();
+  configuredServer = await startTestServer(configuredEnvironment);
+  const persistedRequestStart = providerRequests.length;
+  const persistedResponse = await fetch(
+    `${configuredServer.baseUrl}/api/amplitude/metrics?granularity=day&startDate=2026-09-01&endDate=2026-09-02&refresh=1`,
+  );
+  assert.equal(persistedResponse.status, 200);
+  assert.deepEqual(await persistedResponse.json(), payload);
+  assert.equal(providerRequests.length - persistedRequestStart, 0);
+
+  const dailyRequestStart = providerRequests.length;
+  const dailyResponse = await fetch(
+    `${configuredServer.baseUrl}/api/amplitude/metrics?granularity=day&startDate=2026-09-01&endDate=2026-09-01`,
+  );
+  assert.equal(dailyResponse.status, 200);
+  const dailyPayload = await dailyResponse.json();
+  assert.deepEqual(dailyPayload.events.find((event) => event.name === "app_open"), {
+    name: "app_open",
+    total: 20,
+    uniques: 4,
+  });
+  assert.equal(providerRequests.length - dailyRequestStart, 0);
 });
 
 test("loads DAU, WAU, MAU and cumulative users with four Amplitude requests", async () => {

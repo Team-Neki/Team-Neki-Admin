@@ -1,5 +1,7 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
+
 const DEFAULT_BASE_URL = "https://amplitude.com";
 const EU_BASE_URL = "https://analytics.eu.amplitude.com";
 const REQUEST_TIMEOUT_MS = 20_000;
@@ -16,6 +18,7 @@ export type AmplitudeRuntime = {
   apiKey: string;
   secretKey: string;
   baseUrl: string;
+  projectCacheKey: string;
   timeZone: string;
   projectStartDate: string;
 };
@@ -69,6 +72,7 @@ export const getAmplitudeRuntime = (): AmplitudeRuntime => {
     apiKey,
     secretKey,
     baseUrl,
+    projectCacheKey: createHash("sha256").update(apiKey).digest("hex").slice(0, 16),
     timeZone: readEnvironment("AMPLITUDE_TIME_ZONE") || "Asia/Seoul",
     projectStartDate: readEnvironment("AMPLITUDE_PROJECT_START_DATE") || "2024-01-01",
   };
@@ -147,7 +151,7 @@ const executeRequest = async <T>(runtime: AmplitudeRuntime, request: AmplitudeRe
 
 export const requestAmplitude = async <T>(request: AmplitudeRequest): Promise<T> => {
   const runtime = getAmplitudeRuntime();
-  const cacheKey = `${runtime.baseUrl}|${request.path}|${request.search.toString()}`;
+  const cacheKey = `${runtime.projectCacheKey}|${runtime.baseUrl}|${request.path}|${request.search.toString()}`;
   const cached = responseCache.get(cacheKey);
   if (!request.force && cached && cached.expiresAt > Date.now()) return cached.value as T;
   if (cached) responseCache.delete(cacheKey);

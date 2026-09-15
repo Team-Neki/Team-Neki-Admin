@@ -26,7 +26,7 @@
 
 운영 CRUD와 포즈 업로드는 `app/admin/mock-admin-data.ts`의 시드 데이터와 브라우저 저장 기반 adapter를 사용합니다. 대시보드와 Amplitude 지표 화면은 내부 API route를 통해 Amplitude Dashboard REST API를 직접 호출합니다.
 
-Amplitude 연동에는 `AMPLITUDE_API_KEY`, `AMPLITUDE_SECRET_KEY`, `AMPLITUDE_REGION`, `AMPLITUDE_TIME_ZONE`, `AMPLITUDE_PROJECT_START_DATE`를 서버 환경에 설정합니다. API 키와 Secret은 브라우저로 전달하지 않습니다. 지표 API는 31개 이벤트를 `event_type`으로 묶어 총 발생과 고유 사용자를 각각 한 번에 조회하며, 대시보드는 활성·신규 사용자 API를 사용합니다. 동일 요청 병합, 1개 동시 호출 제한, 서버 캐시를 적용하고 실패 시 목 데이터로 대체하지 않습니다.
+Amplitude 연동에는 `AMPLITUDE_API_KEY`, `AMPLITUDE_SECRET_KEY`, `AMPLITUDE_REGION`, `AMPLITUDE_TIME_ZONE`, `AMPLITUDE_PROJECT_START_DATE`를 서버 환경에 설정합니다. API 키와 Secret은 브라우저로 전달하지 않습니다. 지표 API는 31개 이벤트를 `event_type`으로 묶어 총 발생과 고유 사용자를 각각 한 번에 조회하며, 대시보드는 활성·신규 사용자 API를 사용합니다. 동일 요청 병합, 1개 동시 호출 제한, 서버 캐시를 적용하고 실패 시 목 데이터로 대체하지 않습니다. 운영에서는 `AMPLITUDE_CACHE_DIR=/app/.data/amplitude`에 완료된 일별 지표와 선택 기간 집계를 JSON으로 원자적 저장합니다. 이 경로는 `neki-admin-web-data` PVC에 연결되어 모든 운영자가 같은 캐시를 사용하며 재배포 후에도 유지됩니다. 오늘 데이터는 기존 TTL에 따라 갱신하고 완료된 과거 기간은 저장된 결과를 재사용합니다.
 
 모임통장은 기본적으로 `연결 전` 상태이며, `GROUP_ACCOUNT_DATA_MODE=mock`을 명시한 개발 환경에서만 고정 목 데이터를 반환합니다. OAuth 연결에는 `OPENBANKING_BASE_URL`, `OPENBANKING_CLIENT_ID`, `OPENBANKING_CLIENT_SECRET`, `OPENBANKING_REDIRECT_URI`, `OPENBANKING_CLIENT_USE_CODE`를 서버 환경에 설정하고, 금융결제원 API Key 관리에 동일한 Redirect URL을 등록합니다. 콜백 경로는 `/api/group-account/oauth/callback`입니다. `bank_tran_id`는 이용기관코드와 요청별 고유값으로 서버가 생성합니다. 인증 토큰은 현재 서버 프로세스 메모리에만 유지되므로 서버 재시작·다중 인스턴스 운영 전에는 영구 비밀 저장소 adapter로 교체해야 합니다. 기존에 발급한 토큰을 직접 설정하는 `OPENBANKING_ACCESS_TOKEN`, `OPENBANKING_FINTECH_USE_NUM` 방식도 유지합니다. 토큰과 계좌 식별자는 브라우저나 `localStorage`에 저장하지 않습니다.
 
@@ -78,6 +78,7 @@ npm run lint
 - `app/admin/api-admin-adapter.ts`: 지표·모임통장 조회 API와 기존 목 adapter를 조합하는 구현체
 - `app/api/admin-api/admin-api-proxy.ts`: 추후 운영 CRUD 백엔드 연결에 사용할 서버 전용 경계
 - `app/api/amplitude/amplitude-client.ts`: Amplitude 인증·직렬화·요청 캐시 경계
+- `app/api/amplitude/amplitude-file-cache.ts`: PVC 기반 일별·기간별 JSON 캐시
 - `app/api/amplitude/metrics/amplitude-metrics-server.ts`: 이벤트 발생·고유 사용자 집계
 - `app/api/amplitude/dashboard/amplitude-dashboard-server.ts`: DAU·WAU·MAU·플랫폼 집계
 - `app/api/group-account/group-account-server.ts`: 오픈뱅킹 거래내역 어댑터·정규화·목 모드 경계

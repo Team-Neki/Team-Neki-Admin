@@ -6,6 +6,11 @@ import type {
   DashboardMetrics,
   DashboardTrendPoint,
 } from "../../../admin/types";
+import {
+  isDashboardMetrics,
+  readAmplitudeRangeCache,
+  writeAmplitudeRangeCache,
+} from "../amplitude-file-cache";
 import { getAmplitudeRuntime } from "../amplitude-client";
 import {
   addDays,
@@ -168,22 +173,44 @@ const collectDashboard = async (
 };
 
 export const getAmplitudeDashboard = async (input: DashboardInput) => {
-  getAmplitudeRuntime();
+  const runtime = getAmplitudeRuntime();
   const period = selectedPeriod(input);
-  const cacheKey = `${input.granularity}:${formatDate(period.start)}:${formatDate(period.end)}`;
+  const cacheKey = `${runtime.projectCacheKey}:${input.granularity}:${formatDate(period.start)}:${formatDate(period.end)}`;
+  const finalized = formatDate(period.end) < input.today;
   const cached = resultCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) return cached.value;
   if (cached) resultCache.delete(cacheKey);
 
+  const persisted = await readAmplitudeRangeCache(
+    "dashboard-ranges",
+    cacheKey,
+    isDashboardMetrics,
+    false,
+  );
+  if (persisted) {
+    resultCache.set(cacheKey, {
+      value: persisted,
+      expiresAt: Date.now() + completedRangeCacheTtl(formatDate(period.end), input.today),
+    });
+    return persisted;
+  }
+
   const pending = resultInFlight.get(cacheKey);
   if (pending) return pending;
   const promise = collectDashboard(input, period)
-    .then((value) => {
+    .then(async (value) => {
       pruneResultCache();
       resultCache.set(cacheKey, {
         value,
         expiresAt: Date.now() + completedRangeCacheTtl(formatDate(period.end), input.today),
       });
+      await writeAmplitudeRangeCache(
+        "dashboard-ranges",
+        cacheKey,
+        value,
+        finalized,
+        completedRangeCacheTtl(formatDate(period.end), input.today),
+      );
       return value;
     })
     .finally(() => {
