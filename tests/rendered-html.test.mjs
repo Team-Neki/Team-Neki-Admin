@@ -21,6 +21,13 @@ test("server-renders the Neki Admin operations shell and loading state", async (
 
   const html = await response.text();
   assert.match(html, /<title>Neki Admin<\/title>/i);
+  assert.match(html, /<meta name="description" content="네키 서비스의 지표, 알림, 브랜드, 부스와 콘텐츠를 관리하는 운영자 페이지"/);
+  assert.match(html, /<meta property="og:title" content="Neki Admin"/);
+  assert.match(html, /<meta property="og:description" content="네키 서비스의 지표, 알림, 브랜드, 부스와 콘텐츠를 관리하는 운영자 페이지"/);
+  assert.match(html, /<meta property="og:image" content="http:\/\/127\.0\.0\.1:\d+\/og\.png"/);
+  assert.match(html, /<meta name="robots" content="noindex, nofollow"/);
+  assert.match(html, /<link rel="icon" href="\/icon\.png\?/);
+  assert.match(html, /<link rel="apple-touch-icon" href="\/apple-icon\.png\?/);
   assert.match(html, /수동 알림/);
   assert.match(html, /부스 관리/);
   assert.match(html, /브랜드 관리/);
