@@ -1,5 +1,8 @@
 "use client";
 
+import CodeOutlined from "@ant-design/icons/CodeOutlined";
+import DownloadOutlined from "@ant-design/icons/DownloadOutlined";
+import FileTextOutlined from "@ant-design/icons/FileTextOutlined";
 import ReloadOutlined from "@ant-design/icons/ReloadOutlined";
 import {
   Alert,
@@ -7,6 +10,7 @@ import {
   Card,
   DatePicker,
   Descriptions,
+  Dropdown,
   Empty,
   Input,
   Modal,
@@ -37,6 +41,7 @@ import {
   type AnalyticsDateRange,
   type AnalyticsGroup,
 } from "../model/analytics";
+import { type AnalyticsExportFormat, useAnalyticsExport } from "../model/useAnalyticsExport";
 
 const { Text, Title } = Typography;
 
@@ -86,6 +91,7 @@ export function AnalyticsScreen({
   const [query, setQuery] = useState("");
   const [paginationEnabled, setPaginationEnabled] = useState(false);
   const [selected, setSelected] = useState<AnalyticsEventRecord>();
+  const { download, exporting, exportError } = useAnalyticsExport();
   const metricByName = useMemo(() => new Map((metrics?.events ?? []).map((metric) => [metric.name, metric])), [metrics]);
   const filtered = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase();
@@ -105,15 +111,42 @@ export function AnalyticsScreen({
     { title: "파라미터", width: 210, render: (_, record) => record.parameters.length ? <Space size={[4, 4]} wrap>{record.parameters.map((parameter) => <Tag key={parameter.name} color="blue">{parameter.name}{parameter.optional ? " · 선택" : ""}</Tag>)}</Space> : <Text type="secondary">없음</Text> },
     { title: "트리거 시점", dataIndex: "trigger", width: 320, ellipsis: true },
   ];
+  const exportMetrics = (format: AnalyticsExportFormat) => download(format, {
+    granularity,
+    startDate: range[0].format("YYYY-MM-DD"),
+    endDate: range[1].format("YYYY-MM-DD"),
+    eventNames: filtered.map((event) => event.name),
+  });
+  const exportMenu = {
+    items: [
+      { key: "csv", icon: <FileTextOutlined />, label: "CSV" },
+      { key: "json", icon: <CodeOutlined />, label: "JSON" },
+    ],
+    onClick: ({ key }: { key: string }) => void exportMetrics(key as AnalyticsExportFormat),
+  };
 
   return (
     <>
-      <AdminPageHeader title="Amplitude 지표" action={<Button icon={<ReloadOutlined />} disabled={refreshing || cooldownRemaining > 0} loading={refreshing} onClick={onRefresh}>{cooldownRemaining > 0 ? `${cooldownRemaining}초 후 새로고침` : "새로고침"}</Button>} />
+      <AdminPageHeader title="Amplitude 지표" action={(
+        <Space className="page-heading-actions analytics-page-actions">
+          <Dropdown
+            disabled={!metrics || filtered.length === 0 || Boolean(exporting)}
+            menu={exportMenu}
+            placement="bottomRight"
+          >
+            <Button icon={<DownloadOutlined />} loading={Boolean(exporting)} disabled={!metrics || filtered.length === 0}>내보내기</Button>
+          </Dropdown>
+          <Button icon={<ReloadOutlined />} disabled={refreshing || cooldownRemaining > 0} loading={refreshing} onClick={onRefresh}>
+            {cooldownRemaining > 0 ? `${cooldownRemaining}초 후 새로고침` : "새로고침"}
+          </Button>
+        </Space>
+      )} />
       <Card className="content-card analytics-intro-card">
         <div className="analytics-intro-copy"><Tag color="blue">Amplitude</Tag><Title level={3}>Amplitude 지표</Title></div>
         <div className="analytics-summary-grid"><div><strong>{events.length}개</strong><span>정의된 이벤트</span></div><div><strong>{new Set(events.map((event) => event.area)).size}개</strong><span>기능 영역</span></div><div><strong>{formatActiveUsers(metrics)}</strong><span>{metrics ? `${analyticsGranularityLabel(metrics.granularity)} 활성 사용자` : "활성 사용자"}</span></div><div><strong>{formatFetchedAt(metrics?.fetchedAt)}</strong><span>최근 수집</span></div></div>
       </Card>
       {refreshError && <Alert className="analytics-refresh-alert" type="warning" showIcon title={refreshError} />}
+      {exportError && <Alert className="analytics-refresh-alert" type="error" showIcon title={exportError} />}
       <Card className="content-card table-card analytics-table-card">
         <div className="analytics-group-bar"><Text strong>그룹별 보기</Text><Segmented className="analytics-group-segmented" options={ANALYTICS_GROUP_OPTIONS} value={group} onChange={(value) => setGroup(value as AnalyticsGroup)} aria-label="이벤트 그룹 필터" /></div>
         <div className="toolbar analytics-toolbar"><DatePicker.RangePicker className="analytics-range-picker" value={range} allowClear={false} inputReadOnly minDate={ANALYTICS_MIN_DATE} maxDate={dayjs().startOf("day")} presets={analyticsRangePresets()} format="YYYY.MM.DD" onChange={(dates) => dates?.[0] && dates[1] && onRangeChange([dates[0].startOf("day"), dates[1].startOf("day")])} aria-label="지표 조회 기간" /><Segmented options={ANALYTICS_GRANULARITY_OPTIONS} value={granularity} disabled={refreshing} onChange={(value) => onGranularityChange(value as AnalyticsGranularity)} aria-label="지표 조회 단위" /><Input.Search value={query} onChange={(event) => setQuery(event.target.value)} allowClear placeholder="이벤트명·페이지·트리거 검색" aria-label="이벤트 검색" /></div>

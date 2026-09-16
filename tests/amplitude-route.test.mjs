@@ -153,6 +153,45 @@ test("loads all event totals and uniques with three Amplitude requests", async (
   assert.equal(providerRequests.length - dailyRequestStart, 0);
 });
 
+test("exports the selected Amplitude metrics as CSV and JSON without duplicate provider requests", async () => {
+  const baseQuery = "granularity=week&startDate=2026-08-01&endDate=2026-08-07";
+  const loadResponse = await fetch(`${configuredServer.baseUrl}/api/amplitude/metrics?${baseQuery}`);
+  assert.equal(loadResponse.status, 200);
+  const requestStart = providerRequests.length;
+  const selectedEvents = encodeURIComponent(JSON.stringify(["app_open", "map_view"]));
+
+  const csvResponse = await fetch(
+    `${configuredServer.baseUrl}/api/amplitude/metrics/export?format=csv&${baseQuery}&events=${selectedEvents}`,
+  );
+  assert.equal(csvResponse.status, 200);
+  assert.match(csvResponse.headers.get("content-type") ?? "", /^text\/csv/);
+  assert.equal(
+    csvResponse.headers.get("content-disposition"),
+    'attachment; filename="neki-amplitude-metrics-2026-08-01-2026-08-07.csv"',
+  );
+  const csv = await csvResponse.text();
+  assert.match(csv, /NEKI Amplitude Metrics/);
+  assert.match(csv, /Event Metrics/);
+  assert.match(csv, /app_open/);
+  assert.match(csv, /map_view/);
+  assert.match(csv, /Active Users/);
+  assert.doesNotMatch(csv, /notification_click/);
+
+  const jsonResponse = await fetch(
+    `${configuredServer.baseUrl}/api/amplitude/metrics/export?format=json&${baseQuery}&events=${selectedEvents}`,
+  );
+  assert.equal(jsonResponse.status, 200);
+  assert.match(jsonResponse.headers.get("content-type") ?? "", /^application\/json/);
+  const payload = await jsonResponse.json();
+  assert.equal(payload.periodStart, "2026-08-01");
+  assert.equal(payload.periodEnd, "2026-08-07");
+  assert.deepEqual(payload.events.map((event) => event.name), ["app_open", "map_view"]);
+  assert.equal(payload.events[0].featureArea, "앱 공통");
+  assert.equal(payload.events[0].occurrences, 42);
+  assert.equal(payload.events[0].uniqueUsers, 7);
+  assert.equal(providerRequests.length - requestStart, 0);
+});
+
 test("loads DAU, WAU, MAU and cumulative users with four Amplitude requests", async () => {
   const requestStart = providerRequests.length;
   const response = await fetch(

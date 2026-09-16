@@ -62,11 +62,14 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
     readFile(new URL("../next.config.ts", import.meta.url), "utf8"),
     readFile(new URL("../Dockerfile", import.meta.url), "utf8"),
   ]);
-  const [localStorageSource, analyticsScreen, analyticsHook, analyticsModel, adminPageHeader, groupAccountScreen] = await Promise.all([
+  const [localStorageSource, analyticsScreen, analyticsHook, analyticsExportHook, analyticsModel, analyticsExportRoute, analyticsExportServer, adminPageHeader, groupAccountScreen] = await Promise.all([
     readFile(new URL("../app/admin/local-admin-storage.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/features/analytics/ui/AnalyticsScreen.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/features/analytics/model/useAnalyticsMetrics.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/admin/features/analytics/model/useAnalyticsExport.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/features/analytics/model/analytics.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/amplitude/metrics/export/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/amplitude/metrics/amplitude-metrics-export.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/shared/ui/AdminPageHeader.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/features/group-account/ui/GroupAccountScreen.tsx", import.meta.url), "utf8"),
   ]);
@@ -132,6 +135,15 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(analyticsScreen, /선택 기간 발생/);
   assert.match(adminPageHeader, /export function AdminPageHeader/);
   assert.match(analyticsScreen, /활성 사용자/);
+  assert.match(analyticsScreen, />내보내기<\/Button>/);
+  assert.match(analyticsScreen, /label: "CSV"/);
+  assert.match(analyticsScreen, /label: "JSON"/);
+  assert.match(analyticsScreen, /eventNames: filtered\.map/);
+  assert.match(analyticsExportHook, /\/api\/amplitude\/metrics\/export/);
+  assert.match(analyticsExportRoute, /content-disposition/);
+  assert.match(analyticsExportRoute, /force: false/);
+  assert.match(analyticsExportServer, /Event Metrics/);
+  assert.match(analyticsExportServer, /Active Users/);
   assert.match(analyticsModel, /일별/);
   assert.match(analyticsModel, /주별/);
   assert.match(analyticsModel, /월별/);
