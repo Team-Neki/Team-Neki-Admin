@@ -62,7 +62,7 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
     readFile(new URL("../next.config.ts", import.meta.url), "utf8"),
     readFile(new URL("../Dockerfile", import.meta.url), "utf8"),
   ]);
-  const [localStorageSource, analyticsScreen, analyticsHook, analyticsExportHook, analyticsModel, analyticsExportRoute, analyticsExportServer, adminPageHeader, groupAccountScreen] = await Promise.all([
+  const [localStorageSource, analyticsScreen, analyticsHook, analyticsExportHook, analyticsModel, analyticsExportRoute, analyticsExportServer, changelogScreen, changelogModel, adminPageHeader, groupAccountScreen] = await Promise.all([
     readFile(new URL("../app/admin/local-admin-storage.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/features/analytics/ui/AnalyticsScreen.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/features/analytics/model/useAnalyticsMetrics.ts", import.meta.url), "utf8"),
@@ -70,6 +70,8 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
     readFile(new URL("../app/admin/features/analytics/model/analytics.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/amplitude/metrics/export/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/amplitude/metrics/amplitude-metrics-export.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/admin/features/changelog/ui/ChangelogScreen.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/admin/features/changelog/model/changelog.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/shared/ui/AdminPageHeader.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/features/group-account/ui/GroupAccountScreen.tsx", import.meta.url), "utf8"),
   ]);
@@ -109,6 +111,15 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(adminApp, /key: "dictionary", label: "사전 관리"/);
   assert.match(adminApp, /analytics: \{ title: "Amplitude 지표" \}/);
   assert.match(adminApp, /key: "analytics", label: "Amplitude 지표"/);
+  assert.match(adminApp, /key: "changelog", label: "변경 로그"/);
+  assert.match(adminApp, /from "\.\/features\/changelog"/);
+  assert.match(adminApp, /view === "changelog" \? <ChangelogScreen \/>/);
+  assert.match(changelogScreen, /<AdminPageHeader title="변경 로그" \/>/);
+  assert.match(changelogScreen, /<Timeline/);
+  assert.match(changelogModel, /version: "v0\.2\.0"/);
+  assert.match(changelogModel, /status: "다음 버전"/);
+  assert.match(changelogModel, /Amplitude 지표 CSV·JSON 다운로드/);
+  assert.match(changelogModel, /version: "v0\.1\.0"/);
   assert.match(adminApp, /from "\.\/features\/analytics"/);
   assert.doesNotMatch(adminApp, /function AnalyticsScreen/);
   assert.match(analyticsScreen, /const \[paginationEnabled, setPaginationEnabled\] = useState\(false\)/);

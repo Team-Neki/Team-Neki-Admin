@@ -44,6 +44,7 @@ import dayjs, { type Dayjs } from "dayjs";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { adminAdapter } from "./admin-adapter";
 import { AnalyticsScreen, useAnalyticsMetrics } from "./features/analytics";
+import { ChangelogScreen } from "./features/changelog";
 import { GroupAccountScreen } from "./features/group-account";
 import { AdminPageHeader } from "./shared/ui/AdminPageHeader";
 import type {
@@ -74,7 +75,7 @@ const { Header, Content, Sider } = Layout;
 const { Text, Title, Paragraph } = Typography;
 
 
-type ViewKey = "dashboard" | "notifications" | "stores" | "brands" | "dictionary" | "poses" | "analytics" | "group-account" | "qr-parsing";
+type ViewKey = "dashboard" | "notifications" | "stores" | "brands" | "dictionary" | "poses" | "analytics" | "group-account" | "qr-parsing" | "changelog";
 
 const EMPTY_SNAPSHOT: AdminSnapshot = { notifications: [], stores: [], brands: [], dictionaries: [], poses: [], analyticsEvents: [] };
 
@@ -88,6 +89,7 @@ const VIEW_META: Record<ViewKey, { title: string }> = {
   analytics: { title: "Amplitude 지표" },
   "group-account": { title: "모임통장" },
   "qr-parsing": { title: "QR 파싱 로직" },
+  changelog: { title: "변경 로그" },
 };
 
 const menuItems: MenuProps["items"] = [
@@ -105,6 +107,13 @@ const menuItems: MenuProps["items"] = [
       { key: "group-account", label: "모임통장" },
     ],
   },
+  {
+    type: "group",
+    label: "정보",
+    children: [
+      { key: "changelog", label: "변경 로그" },
+    ],
+  },
 ];
 
 const mobileNavItems: Array<{ key: ViewKey; label: string }> = [
@@ -116,6 +125,7 @@ const mobileNavItems: Array<{ key: ViewKey; label: string }> = [
   { key: "poses", label: "포즈" },
   { key: "analytics", label: "Amplitude 지표" },
   { key: "group-account", label: "모임통장" },
+  { key: "changelog", label: "변경 로그" },
 ];
 
 const audienceLabel = (audience: NotificationAudience, recipients: NotificationRecipient[] = []) => {
@@ -1871,7 +1881,7 @@ function AdminWorkspace() {
           ))}
         </nav>
         <Content className="admin-content">
-          {view === "dashboard" ? <OverviewScreen mode={loadMode} /> : loading ? <LoadingPanel label="운영 데이터를 불러오고 있어요" /> : error ? <ErrorPanel onRetry={load} /> : (
+          {view === "dashboard" ? <OverviewScreen mode={loadMode} /> : view === "changelog" ? <ChangelogScreen /> : loading ? <LoadingPanel label="운영 데이터를 불러오고 있어요" /> : error ? <ErrorPanel onRetry={load} /> : (
             <>
               {view === "notifications" && <NotificationScreen records={data.notifications} setRecords={(update) => setData((current) => ({ ...current, notifications: typeof update === "function" ? update(current.notifications) : update }))} />}
               {view === "stores" && <StoreScreen stores={data.stores} brands={data.brands} setStores={(update) => setData((current) => ({ ...current, stores: typeof update === "function" ? update(current.stores) : update }))} />}
