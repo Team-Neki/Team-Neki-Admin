@@ -116,10 +116,10 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(adminApp, /view === "changelog" \? <ChangelogScreen \/>/);
   assert.match(changelogScreen, /<AdminPageHeader title="변경 로그" \/>/);
   assert.match(changelogScreen, /<Timeline/);
-  assert.match(changelogModel, /version: "v0\.2\.0"/);
+  assert.match(changelogModel, /version: "v2"/);
   assert.match(changelogModel, /status: "다음 버전"/);
   assert.match(changelogModel, /Amplitude 지표 CSV·JSON 다운로드/);
-  assert.match(changelogModel, /version: "v0\.1\.0"/);
+  assert.match(changelogModel, /version: "v1"/);
   assert.match(adminApp, /from "\.\/features\/analytics"/);
   assert.doesNotMatch(adminApp, /function AnalyticsScreen/);
   assert.match(analyticsScreen, /const \[paginationEnabled, setPaginationEnabled\] = useState\(false\)/);

@@ -11,14 +11,14 @@ export type ChangelogRelease = {
 
 export const changelogReleases: ChangelogRelease[] = [
   {
-    version: "v0.2.0",
+    version: "v2",
     status: "다음 버전",
     entries: [
       { type: "추가", title: "Amplitude 지표 CSV·JSON 다운로드" },
     ],
   },
   {
-    version: "v0.1.0",
+    version: "v1",
     status: "현재 버전",
     entries: [
       { type: "추가", title: "사용자 지표 대시보드" },
