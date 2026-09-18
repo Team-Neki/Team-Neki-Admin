@@ -26,7 +26,6 @@ export const changelogReleases: ChangelogRelease[] = [
       { type: "추가", title: "부스·브랜드·사전·포즈 관리" },
       { type: "추가", title: "Amplitude 이벤트 지표 조회" },
       { type: "개선", title: "Amplitude 일별 데이터 캐시" },
-      { type: "추가", title: "모임통장 연결·거래내역 조회" },
     ],
   },
 ];

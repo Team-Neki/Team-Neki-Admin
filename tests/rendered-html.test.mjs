@@ -34,7 +34,7 @@ test("server-renders the Neki Admin operations shell and loading state", async (
   assert.doesNotMatch(html, /브랜드 지원 관리/);
   assert.doesNotMatch(html, /미지원 브랜드 관리/);
   assert.match(html, /포즈 관리/);
-  assert.match(html, /모임통장/);
+  assert.doesNotMatch(html, /모임통장/);
   assert.match(html, /운영 데이터를 불러오고 있어요/);
   assert.doesNotMatch(html, /빠른 실행|운영 알림/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape|Building your site/);
@@ -62,7 +62,7 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
     readFile(new URL("../next.config.ts", import.meta.url), "utf8"),
     readFile(new URL("../Dockerfile", import.meta.url), "utf8"),
   ]);
-  const [localStorageSource, analyticsScreen, analyticsHook, analyticsExportHook, analyticsModel, analyticsExportRoute, analyticsExportServer, changelogScreen, changelogModel, adminPageHeader, groupAccountScreen] = await Promise.all([
+  const [localStorageSource, analyticsScreen, analyticsHook, analyticsExportHook, analyticsModel, analyticsExportRoute, analyticsExportServer, changelogScreen, changelogModel, adminPageHeader] = await Promise.all([
     readFile(new URL("../app/admin/local-admin-storage.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/features/analytics/ui/AnalyticsScreen.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/features/analytics/model/useAnalyticsMetrics.ts", import.meta.url), "utf8"),
@@ -73,7 +73,6 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
     readFile(new URL("../app/admin/features/changelog/ui/ChangelogScreen.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/features/changelog/model/changelog.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/shared/ui/AdminPageHeader.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/admin/features/group-account/ui/GroupAccountScreen.tsx", import.meta.url), "utf8"),
   ]);
 
   assert.match(page, /AdminApp/);
@@ -132,10 +131,7 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(analyticsScreen, /title: "기능 영역"[\s\S]*sorter: \(a, b\) => a\.area\.localeCompare/);
   assert.match(analyticsScreen, /title: "선택 기간 발생"[\s\S]*sorter: \(a, b\) => \(metricByName\.get\(a\.name\)\?\.total/);
   assert.match(analyticsScreen, /title: "고유 사용자"[\s\S]*sorter: \(a, b\) => \(metricByName\.get\(a\.name\)\?\.uniques/);
-  assert.match(adminApp, /from "\.\/features\/group-account"/);
-  assert.doesNotMatch(adminApp, /function GroupAccountScreen/);
-  assert.match(groupAccountScreen, /href="\/api\/group-account\/connect"/);
-  assert.match(groupAccountScreen, /action="\/api\/group-account\/account-selection"/);
+  assert.doesNotMatch(adminApp, /group-account|모임통장/);
   assert.doesNotMatch(adminApp, /<span>\{record\.platform\} · \{record\.sourceFile\}<\/span>/);
   assert.match(analyticsScreen, /<Title level=\{3\}>Amplitude 지표<\/Title>/);
   assert.doesNotMatch(analyticsScreen, /GA4/);
@@ -162,7 +158,7 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(apiAdapter, /new URLSearchParams\(\{[\s\S]*granularity: query\.granularity,[\s\S]*startDate: query\.startDate,[\s\S]*endDate: query\.endDate/);
   assert.match(apiAdapter, /fetch\(`\/api\/amplitude\/metrics\?\$\{params\.toString\(\)\}`/);
   assert.match(apiAdapter, /fetch\(`\/api\/amplitude\/dashboard\?/);
-  assert.match(apiAdapter, /fetch\(`\/api\/group-account\/transactions\?/);
+  assert.doesNotMatch(apiAdapter, /group-account|GroupAccount/);
   assert.match(dashboardRoute, /getAmplitudeDashboard/);
   assert.match(dashboardRoute, /rangeStartDate/);
   assert.match(dashboardRoute, /rangeEndDate/);

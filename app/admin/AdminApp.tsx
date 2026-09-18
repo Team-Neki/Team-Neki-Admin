@@ -45,7 +45,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { adminAdapter } from "./admin-adapter";
 import { AnalyticsScreen, useAnalyticsMetrics } from "./features/analytics";
 import { ChangelogScreen } from "./features/changelog";
-import { GroupAccountScreen } from "./features/group-account";
 import { AdminPageHeader } from "./shared/ui/AdminPageHeader";
 import type {
   AddressSuggestion,
@@ -75,7 +74,7 @@ const { Header, Content, Sider } = Layout;
 const { Text, Title, Paragraph } = Typography;
 
 
-type ViewKey = "dashboard" | "notifications" | "stores" | "brands" | "dictionary" | "poses" | "analytics" | "group-account" | "qr-parsing" | "changelog";
+type ViewKey = "dashboard" | "notifications" | "stores" | "brands" | "dictionary" | "poses" | "analytics" | "qr-parsing" | "changelog";
 
 const EMPTY_SNAPSHOT: AdminSnapshot = { notifications: [], stores: [], brands: [], dictionaries: [], poses: [], analyticsEvents: [] };
 
@@ -87,7 +86,6 @@ const VIEW_META: Record<ViewKey, { title: string }> = {
   dictionary: { title: "사전 관리" },
   poses: { title: "포즈 관리" },
   analytics: { title: "Amplitude 지표" },
-  "group-account": { title: "모임통장" },
   "qr-parsing": { title: "QR 파싱 로직" },
   changelog: { title: "변경 로그" },
 };
@@ -104,7 +102,6 @@ const menuItems: MenuProps["items"] = [
       { key: "dictionary", label: "사전 관리" },
       { key: "poses", label: "포즈 관리" },
       { key: "analytics", label: "Amplitude 지표" },
-      { key: "group-account", label: "모임통장" },
     ],
   },
   {
@@ -124,7 +121,6 @@ const mobileNavItems: Array<{ key: ViewKey; label: string }> = [
   { key: "dictionary", label: "사전" },
   { key: "poses", label: "포즈" },
   { key: "analytics", label: "Amplitude 지표" },
-  { key: "group-account", label: "모임통장" },
   { key: "changelog", label: "변경 로그" },
 ];
 
@@ -1889,7 +1885,6 @@ function AdminWorkspace() {
               {view === "dictionary" && <DictionaryScreen dictionaries={data.dictionaries} setDictionaries={(update) => setData((current) => ({ ...current, dictionaries: typeof update === "function" ? update(current.dictionaries) : update }))} />}
               {view === "poses" && <PoseScreen poses={data.poses} setPoses={(update) => setData((current) => ({ ...current, poses: typeof update === "function" ? update(current.poses) : update }))} />}
               {view === "analytics" && <AnalyticsScreen events={data.analyticsEvents} metrics={analytics.metrics} granularity={analytics.granularity} range={analytics.range} refreshing={analytics.refreshing} cooldownRemaining={analytics.cooldownRemaining} refreshError={analytics.refreshError} onRefresh={analytics.refresh} onGranularityChange={analytics.setGranularity} onRangeChange={analytics.setRange} />}
-              {view === "group-account" && <GroupAccountScreen />}
               {view === "qr-parsing" && <QrParsingScreen onBack={() => navigate("brands")} />}
             </>
           )}

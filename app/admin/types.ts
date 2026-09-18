@@ -206,57 +206,6 @@ export type QrParsingRule = {
   notes?: string;
 };
 
-export type GroupAccountDirection = "all" | "in" | "out";
-
-export type GroupAccountOption = {
-  id: string;
-  bankName: string;
-  accountAlias: string | null;
-  accountNumberMasked: string;
-};
-
-export type GroupAccountStatus =
-  | { state: "unconfigured"; message: string }
-  | { state: "authorization_error"; message: string }
-  | {
-      state: "selection_required";
-      accounts: GroupAccountOption[];
-    }
-  | {
-      state: "connected";
-      accountLabel: string;
-      lastSyncedAt: string | null;
-    }
-  | {
-      state: "mock";
-      accountLabel: string;
-      lastSyncedAt: string;
-    };
-
-export type GroupAccountTransaction = {
-  id: string;
-  occurredAt: string;
-  description: string;
-  direction: "in" | "out";
-  amount: number;
-  balanceAfter: number | null;
-};
-
-export type GroupAccountTransactionsResponse = {
-  items: GroupAccountTransaction[];
-  page: number;
-  pageSize: number;
-  hasNextPage: boolean;
-  fetchedAt: string;
-};
-
-export type GroupAccountQuery = {
-  from: string;
-  to: string;
-  direction: GroupAccountDirection;
-  page: number;
-};
-
 export type AdminSnapshot = {
   notifications: NotificationRecord[];
   stores: StoreRecord[];
@@ -286,6 +235,4 @@ export interface AdminAdapter {
   saveDictionary(draft: DictionaryDraft, id?: string): Promise<DictionaryRecord>;
   uploadPoses(input: PoseUploadInput[]): Promise<PoseRecord[]>;
   refreshAnalytics(query: AnalyticsMetricsQuery): Promise<AnalyticsRefreshResult>;
-  getGroupAccountStatus(): Promise<GroupAccountStatus>;
-  getGroupAccountTransactions(query: GroupAccountQuery): Promise<GroupAccountTransactionsResponse>;
 }
