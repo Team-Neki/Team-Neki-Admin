@@ -116,6 +116,7 @@ test("completes OAuth on the server without exposing the client secret", async (
   assert.equal(authorizationUrl.searchParams.has("client_secret"), false);
 
   const state = authorizationUrl.searchParams.get("state");
+  assert.match(state, /^[a-f0-9]{32}$/);
   const stateCookie = connectResponse.headers.get("set-cookie").split(";", 1)[0];
   const callbackResponse = await fetch(
     `${oauthServer.baseUrl}/api/group-account/oauth/callback?code=test-code&state=${state}`,

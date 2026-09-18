@@ -1,10 +1,9 @@
-import { randomBytes } from "node:crypto";
-
 import { type NextRequest, NextResponse } from "next/server";
 
 import { setOpenBankingAuthorizationError } from "../open-banking-credential-store";
 import {
   createOpenBankingAuthorizationUrl,
+  createOpenBankingOAuthState,
   OpenBankingOAuthError,
 } from "../open-banking-oauth-server";
 
@@ -13,7 +12,7 @@ export const dynamic = "force-dynamic";
 const OAUTH_STATE_COOKIE = "neki_openbanking_oauth_state";
 
 export async function GET(request: NextRequest) {
-  const state = randomBytes(32).toString("hex");
+  const state = createOpenBankingOAuthState();
   let authorizationUrl: URL;
   try {
     authorizationUrl = createOpenBankingAuthorizationUrl(state);

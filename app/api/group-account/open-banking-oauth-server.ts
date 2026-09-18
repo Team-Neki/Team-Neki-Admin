@@ -1,10 +1,13 @@
 import "server-only";
 
+import { randomBytes } from "node:crypto";
+
 import type { OpenBankingAccount, OpenBankingCredential } from "./open-banking-credential-store";
 
 const AUTHORIZE_PATH = "/oauth/2.0/authorize";
 const TOKEN_PATH = "/oauth/2.0/token";
 const USER_INFO_PATH = "/v2.0/user/me";
+const OAUTH_STATE_LENGTH = 32;
 
 type OpenBankingOAuthConfig = {
   baseUrl: string;
@@ -57,6 +60,9 @@ export const getOpenBankingOAuthConfig = (): OpenBankingOAuthConfig => {
   }
   return config;
 };
+
+export const createOpenBankingOAuthState = () =>
+  randomBytes(OAUTH_STATE_LENGTH / 2).toString("hex");
 
 export const createOpenBankingAuthorizationUrl = (state: string) => {
   const config = getOpenBankingOAuthConfig();
