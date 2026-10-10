@@ -20,7 +20,8 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
-          node-version: "22.13.0"
+          # Existing app tests import TypeScript directly (enabled by default since 22.18).
+          node-version: "22"
           cache: npm
           cache-dependency-path: |
             package-lock.json
