@@ -11,6 +11,8 @@
 .wrangler
 dist
 node_modules
+collectors
+.playwright-mcp
 outputs
 work
 vite.config.ts

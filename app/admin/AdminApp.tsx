@@ -45,6 +45,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { adminAdapter } from "./admin-adapter";
 import { AnalyticsScreen, useAnalyticsMetrics } from "./features/analytics";
 import { ChangelogScreen } from "./features/changelog";
+import { BrandNewsScreen } from "./features/brand-news";
 import { AdminPageHeader } from "./shared/ui/AdminPageHeader";
 import type {
   AddressSuggestion,
@@ -74,7 +75,7 @@ const { Header, Content, Sider } = Layout;
 const { Text, Title, Paragraph } = Typography;
 
 
-type ViewKey = "dashboard" | "notifications" | "stores" | "brands" | "dictionary" | "poses" | "analytics" | "qr-parsing" | "changelog";
+type ViewKey = "dashboard" | "notifications" | "stores" | "brands" | "brand-news" | "dictionary" | "poses" | "analytics" | "qr-parsing" | "changelog";
 
 const EMPTY_SNAPSHOT: AdminSnapshot = { notifications: [], stores: [], brands: [], dictionaries: [], poses: [], analyticsEvents: [] };
 
@@ -83,6 +84,7 @@ const VIEW_META: Record<ViewKey, { title: string }> = {
   notifications: { title: "수동 알림" },
   stores: { title: "부스 관리" },
   brands: { title: "브랜드 관리" },
+  "brand-news": { title: "브랜드 소식" },
   dictionary: { title: "사전 관리" },
   poses: { title: "포즈 관리" },
   analytics: { title: "Amplitude 지표" },
@@ -99,6 +101,7 @@ const menuItems: MenuProps["items"] = [
       { key: "notifications", label: "수동 알림" },
       { key: "stores", label: "부스 관리" },
       { key: "brands", label: "브랜드 관리" },
+      { key: "brand-news", label: "브랜드 소식" },
       { key: "dictionary", label: "사전 관리" },
       { key: "poses", label: "포즈 관리" },
       { key: "analytics", label: "Amplitude 지표" },
@@ -118,6 +121,7 @@ const mobileNavItems: Array<{ key: ViewKey; label: string }> = [
   { key: "notifications", label: "수동 알림" },
   { key: "stores", label: "부스" },
   { key: "brands", label: "브랜드" },
+  { key: "brand-news", label: "브랜드 소식" },
   { key: "dictionary", label: "사전" },
   { key: "poses", label: "포즈" },
   { key: "analytics", label: "Amplitude 지표" },
@@ -1877,7 +1881,7 @@ function AdminWorkspace() {
           ))}
         </nav>
         <Content className="admin-content">
-          {view === "dashboard" ? <OverviewScreen mode={loadMode} /> : view === "changelog" ? <ChangelogScreen /> : loading ? <LoadingPanel label="운영 데이터를 불러오고 있어요" /> : error ? <ErrorPanel onRetry={load} /> : (
+          {view === "dashboard" ? <OverviewScreen mode={loadMode} /> : view === "brand-news" ? <BrandNewsScreen /> : view === "changelog" ? <ChangelogScreen /> : loading ? <LoadingPanel label="운영 데이터를 불러오고 있어요" /> : error ? <ErrorPanel onRetry={load} /> : (
             <>
               {view === "notifications" && <NotificationScreen records={data.notifications} setRecords={(update) => setData((current) => ({ ...current, notifications: typeof update === "function" ? update(current.notifications) : update }))} />}
               {view === "stores" && <StoreScreen stores={data.stores} brands={data.brands} setStores={(update) => setData((current) => ({ ...current, stores: typeof update === "function" ? update(current.stores) : update }))} />}

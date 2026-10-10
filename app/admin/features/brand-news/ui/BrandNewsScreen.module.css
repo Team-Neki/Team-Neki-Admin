@@ -1,0 +1,12 @@
+.card :global(.ant-tabs-nav) { padding-inline: 20px; }
+.filters { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; padding: 4px 20px 0; }
+.brand { min-width: 168px; }
+.search { width: min(340px, 100%); }
+.summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-bottom: 16px; padding-inline: 20px; }
+.notice { margin-bottom: 16px; }
+.failures { display: grid; gap: 12px; padding: 8px; overflow-wrap: anywhere; }
+.failure { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; }
+@media (max-width: 680px) {
+  .filters { flex-direction: column; }
+  .brand, .search { width: 100%; }
+}
