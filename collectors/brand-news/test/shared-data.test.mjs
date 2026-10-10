@@ -13,7 +13,9 @@ test("initial public snapshot reconciles all six brands without private artifact
   assert.equal(snapshot.sources.length, 6);
   assert.equal(snapshot.sources.reduce((sum, source) => sum + source.recordCount, 0), 196);
   assert.doesNotMatch(JSON.stringify(state), /DO-NOT-PUBLISH/);
-  assert.equal(snapshot.sources.find((source) => source.brandName === "포토그레이").status, "partial");
+  assert.equal(snapshot.sources.find((source) => source.brandName === "포토그레이").failureCode, "rate-limited");
+  assert.ok(snapshot.records.every((record) => Array.isArray(record.imageUrls)));
+  assert.ok(snapshot.records.some((record) => record.brandName === "하루필름" && record.imageUrls.length > 1));
   assert.ok(snapshot.records.every((record) => record.reviewStatus === "pending"));
 });
 

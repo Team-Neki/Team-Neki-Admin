@@ -33,6 +33,7 @@
 | `period.yearBasis` | 연도의 근거 | `explicit-source-year`, `publication-year`, `unknown` |
 | `scope.type` | 부스 적용 범위 | 현재 `unverified`, 제목의 부스명만으로 전국 적용 추정 금지 |
 | `media.imageUrl` | 원문 이미지 링크 | HTTPS만 허용. 이미지 파일은 저장하지 않음 |
+| `media.imageUrls` | 원문 순서의 사진 목록 | 대표 사진 포함, 중복 제거, HTTPS·인증정보 없는 URL만 최대 20장. 목록 미확보는 빈 배열 |
 | `content.excerpt` | 원문 목록/RSS 요약 | 텍스트로 정규화, 목록 파서에서 최대 2,000자 |
 | `source.key`, `externalId`, `url` | 원문 출처 | 등록된 원문 경로/ID/공식 계정만 허용, 추적 파라미터 제거 |
 | `source.fingerprint` | 원문 후보 내용 해시 | 수집 단계의 SHA-256, 원문 HTML 전체의 해시 아님 |
@@ -45,7 +46,9 @@
 
 `calendarHint=within-listed-period`라도 촬영 가능을 뜻하지 않는다. 같은 글의 부스 한정, 조기 종료, 날짜 이미지, 지역 범위는 사람이 원문을 확인해야 한다.
 
-원문 상태의 `fingerprintVersion=2`는 Instagram CDN 쿼리·서명을 제외하고 이미지 경로로 변경을 판정한다. 기존 상태를 처음 갱신할 때 저장된 내용으로 같은 규칙의 해시를 계산해 비교하므로 해시 규칙 변경만으로 재검토하지 않는다. 정규화 파일 형식 버전은 여전히 1이다.
+원문 상태의 `fingerprintVersion=2`는 Instagram CDN 쿼리·서명을 제외하고 이미지 경로로 변경을 판정한다. 여러 장의 사진을 확보하면 사진 목록도 내용 해시에 포함한다. 기존 상태를 처음 갱신할 때 저장된 내용으로 같은 규칙의 해시를 계산해 비교하므로 해시 규칙 변경만으로 재검토하지 않는다. 정규화 파일 형식 버전은 여전히 1이다.
+
+포토시그니처는 상세 `.view_image img`, 하루필름은 상세 `.board_txt_area img`만 읽고 사이트 로고·댓글 사진은 제외한다. Instagram은 정확히 같은 shortcode의 공개 JSON에 포함된 carousel만 허용하며 다른 글·프로필 사진을 모으지 않는다. carousel이 공개되지 않으면 확인된 대표 사진만 저장한다. 사진 목록 미확보를 원문의 단일 사진 확정으로 취급하지 않는다. `mediaObservedAt`은 웹 상세 사진 목록의 마지막 정상 조회 시각이다. 어드민 조회 JSON은 `imageUrls`와 `excerpt`를 평탄화해 제공하며 구버전 JSON은 해당 필드가 없어도 읽을 수 있다.
 
 출처 진단은 `ok`, `cached`, `error`, `partial`, `deferred`를 구분한다. `lastSuccessAt`은 전체 성공만 갱신한다. `partial`에는 읽은 글 수·선택 수·상세 실패 수와 `lastPartialAt`을 남긴다. `failureCode`, `consecutiveFailures`, `lastAttemptAt`, `nextAttemptAt`으로 원인·실패 누적·재시도 대기를 다음 실행에도 유지한다. 옛 `ok` 진단에 상세 실패 수가 있으면 전체 성공으로 표시하지 않는다.
 

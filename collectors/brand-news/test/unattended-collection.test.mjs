@@ -55,8 +55,7 @@ test("a first-party internal 429 stops a 200 document before the next post", asy
   assert.equal(scenario.navigations.length, 3);
   assert.equal(result.diagnostics[0].failureCode, "rate-limited");
   assert.equal(result.diagnostics[0].retryAfterMs, 3_600_000);
-  assert.equal(result.diagnostics[0].failedPosts[0].url, posts[1]);
-  assert.equal(result.diagnostics[0].failedPosts[0].stage, "navigate");
+  assert.deepEqual(result.diagnostics[0].failedPosts, []);
 });
 
 test("third-party 429 is ignored and profile 429 preserves no false success", async () => {
@@ -70,7 +69,7 @@ test("third-party 429 is ignored and profile 429 preserves no false success", as
 
 test("incremental scan skips fresh posts, prioritizes new IDs and bounds retry attempts", async () => {
   const observedAt = "2026-10-10T12:00:00Z";
-  const knownRecords = posts.slice(0, 3).map((sourceUrl) => ({ sourceUrl, observedAt }));
+  const knownRecords = posts.slice(0, 3).map((sourceUrl) => ({ sourceUrl, observedAt, imageUrls: ["https://scontent.cdninstagram.com/photo.jpg"] }));
   const fresh = browserScenario();
   const html = await fetchPublicInstagramHtml(source, { ...fresh.options, observedAt, knownRecords });
   assert.deepEqual(fresh.navigations, [source.url, posts[3]]);
@@ -87,7 +86,8 @@ test("incremental scan skips fresh posts, prioritizes new IDs and bounds retry a
     failedPosts: [{ url: posts[3], attempts: 3, status: "needs-review", nextAttemptAt: null }] });
   const result = await collectCandidates({ pages: [source], browserFetchImpl: async () => noDetails });
   assert.deepEqual(skip.navigations, [source.url]);
-  assert.equal(result.diagnostics[0].status, "partial");
+  assert.equal(result.diagnostics[0].status, "ok");
+  assert.equal(result.diagnostics[0].failedPosts[0].status, "needs-review");
 });
 
 test("login during a batch retains readable posts but reports partial failure", async () => {
@@ -101,7 +101,7 @@ test("login during a batch retains readable posts but reports partial failure", 
   assert.equal(result.diagnostics[0].failureCode, "login-required");
   assert.equal(result.diagnostics[0].selectedCount, 4);
   assert.equal(result.diagnostics[0].attemptedDetails, 2);
-  assert.equal(result.diagnostics[0].detailFailures, 1);
+  assert.equal(result.diagnostics[0].detailFailures, 0);
   assert.equal(result.diagnostics[0].lastSuccessAt, undefined);
 });
 

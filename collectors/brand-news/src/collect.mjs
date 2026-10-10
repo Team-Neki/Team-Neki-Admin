@@ -1,6 +1,7 @@
 import { selectedPages, selectedBrands } from "./collection-scope.mjs";
 import { parsePage } from "./parse.mjs";
 import { load } from "cheerio";
+import { enrichWebsiteImages } from "./website-media.mjs";
 
 const MAX_HTML_BYTES = 2_000_000;
 const MAX_FETCH_ATTEMPTS = 3;
@@ -80,19 +81,23 @@ export async function collectCandidates({ pages = selectedPages, fetchImpl = fet
           failedPosts: earlier?.failedPosts ?? [],
         })
         : await fetchHtmlWithRetry(page.url, fetchImpl);
-      const parsed = parsePage(html, page);
+      let parsed = parsePage(html, page);
+      const media = usePublicBrowser && ["photosignature", "harufilm-news"].includes(page.parser)
+        ? await enrichWebsiteImages(parsed, page, { previous, observedAt, readHtml: (url) => fetchHtmlWithRetry(url, fetchImpl) }) : null;
+      if (media) parsed = media.records;
       const main = load(html)("main[data-source-account]");
       const discoveryOnly = page.parser === "instagram-public" && main.attr("data-selected") === "0" && Number(main.attr("data-listed")) > 0;
       if (parsed.length === 0 && !discoveryOnly) throw Object.assign(new Error("No records found; source layout may have changed"), { code: "layout-changed" });
-      const failedPosts = page.parser === "instagram-public" ? JSON.parse(main.attr("data-post-failures") ?? "[]") : [];
+      const failedPosts = page.parser === "instagram-public" ? JSON.parse(main.attr("data-post-failures") ?? "[]") : media?.failedPosts ?? [];
       candidates.push(...parsed.map((item) => ({ ...item, observedAt })));
       const readCount = Number(html.match(/data-read="(\d+)"/)?.[1] ?? parsed.length);
       const selectedCount = Number(html.match(/data-selected="(\d+)"/)?.[1] ?? readCount);
       const detailFailures = Number(html.match(/data-failed="(\d+)"/)?.[1] ?? 0) + Math.max(0, readCount - parsed.length);
-      const partial = page.parser === "instagram-public" && (detailFailures > 0 || parsed.length < selectedCount || failedPosts.length > 0);
+      const partial = (page.parser === "instagram-public" && (detailFailures > 0 || parsed.length < selectedCount)) || failedPosts.some((failure) => failure.status !== "needs-review") || !!media?.failureCode;
       diagnostics.push({ sourceKey: page.key, status: partial ? "partial" : "ok", count: parsed.length,
-        ...(partial ? { failureCode: html.match(/data-failure-code="([a-z-]+)"/)?.[1] ?? "partial-metadata",
-          retryAfterMs: Number(html.match(/data-retry-after-ms="(\d+)"/)?.[1] ?? 0) } : { lastSuccessAt: observedAt }),
+        ...(partial ? { failureCode: media?.failureCode || html.match(/data-failure-code="([a-z-]+)"/)?.[1] || "partial-metadata",
+          retryAfterMs: media?.retryAfterMs ?? Number(html.match(/data-retry-after-ms="(\d+)"/)?.[1] ?? 0) } : { lastSuccessAt: observedAt }),
+        ...(media ? { failedPosts, attemptedDetails: media.attemptedDetails } : {}),
         ...(page.parser === "instagram-public" ? { listedPosts: Number(html.match(/data-listed="(\d+)"/)?.[1] ?? 0),
           selectedCount, attemptedDetails: Number(html.match(/data-attempted="(\d+)"/)?.[1] ?? readCount + detailFailures), detailFailures, failedPosts } : {}) });
     } catch (error) {

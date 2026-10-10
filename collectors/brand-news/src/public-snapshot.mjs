@@ -8,7 +8,7 @@ const safePostFailure = ({ url, stage, code, attempts, lastAttemptAt, status, ne
 export function publicState(state) {
   return { schemaVersion: 1, lastRunAt: state.lastRunAt,
     records: selectSourceRecords(state.records).map((record) => {
-      const fields = ["id", "brandId", "sourceKey", "externalId", "sourceUrl", "title", "kind", "publishedOn", "startsOn", "endsOn", "rawDateText", "imageUrl", "excerpt", "fingerprint", "fingerprintVersion", "observedAt", "firstSeenAt", "lastSeenAt", "sourceChangedAt", "reviewStatus", "sourceStatus", "needsReview"];
+      const fields = ["id", "brandId", "sourceKey", "externalId", "sourceUrl", "title", "kind", "publishedOn", "startsOn", "endsOn", "rawDateText", "imageUrl", "imageUrls", "mediaObservedAt", "excerpt", "fingerprint", "fingerprintVersion", "observedAt", "firstSeenAt", "lastSeenAt", "sourceChangedAt", "reviewStatus", "sourceStatus", "needsReview"];
       return Object.fromEntries(fields.filter((field) => record[field] !== undefined).map((field) => [field, record[field]]));
     }),
     diagnostics: selectedPages.map((page) => {
@@ -29,6 +29,7 @@ export function createPublicSnapshot(state) {
       recordCount: normalized.records.filter((record) => record.source.key === page.key).length })),
     records: normalized.records.map((record) => ({ id: record.id, brandId: record.brand.id, brandName: record.brand.name,
       title: record.title, category: record.classification.primary, publishedOn: record.publishedOn,
+      imageUrls: record.media.imageUrls, excerpt: record.content.excerpt,
       startsOn: record.period.startsOn, endsOn: record.period.endsOn, url: record.source.url,
       observedAt: record.source.observedAt, reviewStatus: record.status.review,
       warnings: record.quality.warnings })) };

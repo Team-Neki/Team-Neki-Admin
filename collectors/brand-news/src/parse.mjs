@@ -51,6 +51,7 @@ function candidate(page, externalId, title, url, details = {}) {
   const year = publishedOn ? Number(publishedOn.slice(0, 4)) : null;
   const { startsOn, endsOn } = rangeFromText(rawDateText, year);
   const normalizedImageUrl = imageUrl(details.imageUrl, page.url);
+  const imageUrls = Array.isArray(details.imageUrls) ? [...new Set(details.imageUrls.map((value) => imageUrl(value, page.url)).filter(Boolean))].slice(0, 20) : undefined;
   const excerpt = clean(details.excerpt).slice(0, 2000) || null;
   const sourceStatus = /종료[!！.\s]*$/.test(normalizedTitle) ? "ended" : "unknown";
   const needsReview = [];
@@ -58,12 +59,12 @@ function candidate(page, externalId, title, url, details = {}) {
   if (!endsOn) needsReview.push("end-date-unverified");
   if (details.imageOnly) needsReview.push("image-only-details");
   const id = `${page.brandId}:${page.key}:${externalId}`;
-  const fingerprint = contentFingerprint({ title: normalizedTitle, rawDateText, publishedOn, imageUrl: normalizedImageUrl, excerpt });
+  const fingerprint = contentFingerprint({ title: normalizedTitle, rawDateText, publishedOn, imageUrl: normalizedImageUrl, imageUrls, excerpt });
   return {
     id, externalId, brandId: page.brandId, brand: page.brand, sourceKey: page.key, sourceUrl: url,
     title: normalizedTitle, kind: details.kind ?? page.kind,
     publishedOn, startsOn, endsOn, rawDateText: rawDateText || null,
-    imageUrl: normalizedImageUrl, excerpt, sourceStatus, availability: "unverified", needsReview, fingerprint, fingerprintVersion: 2,
+    imageUrl: normalizedImageUrl, ...(imageUrls ? { imageUrls } : {}), excerpt, sourceStatus, availability: "unverified", needsReview, fingerprint, fingerprintVersion: 2,
   };
 }
 
@@ -240,7 +241,7 @@ export function parseInstagramSnapshot(html, page) {
     const title = (caption.trim().startsWith("#EVENT") ? `#EVENT · ${first?.replace(/^#EVENT\s*/, "")}` : first)?.slice(0, 180);
     return candidate(page, match[3], title, url, {
       kind: kindFromTitle(caption), publishedOn, excerpt: caption,
-      imageUrl: row.attr("data-image"), imageOnly: false,
+      imageUrl: row.attr("data-image"), imageUrls: JSON.parse(row.attr("data-images") ?? "[]"), imageOnly: false,
     });
   }).filter(Boolean);
 }

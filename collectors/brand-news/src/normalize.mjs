@@ -115,6 +115,7 @@ function normalizeOne(item, asOfDay, pages, brands) {
   if (item.needsReview?.includes("generated-title")) warnings.push("generated-title");
   if (page.parser === "instagram-public") warnings.push("caption-derived-title", "social-image-url-may-expire");
   const image = item.imageUrl ? safeUrl(item.imageUrl) : null;
+  const imageUrls = [...new Set([image?.href, ...(Array.isArray(item.imageUrls) ? item.imageUrls.map((value) => safeUrl(value)?.href) : [])].filter(Boolean))].slice(0, 20);
   if (item.imageUrl && !image) warnings.push("unsafe-image-url");
   if (!image) warnings.push("image-url-missing");
   const observedAt = Number.isFinite(Date.parse(item.observedAt ?? "")) ? new Date(item.observedAt).toISOString() : null;
@@ -128,7 +129,7 @@ function normalizeOne(item, asOfDay, pages, brands) {
     period: { startsOn, endsOn, rawText: clean(item.rawDateText) || null,
       yearBasis: startsOn || endsOn ? /\d{4}\./.test(item.rawDateText ?? "") ? "explicit-source-year" : item.rawDateText && publishedOn ? "publication-year" : "unknown" : "unknown" },
     scope: { type: "unverified" },
-    media: { imageUrl: image?.href ?? null },
+    media: { imageUrl: image?.href ?? null, imageUrls },
     content: { excerpt: clean(item.excerpt) || null },
     source: { key: page.key, externalId, url, fingerprint: item.fingerprint, observedAt },
     status: { review: item.reviewStatus === "approved" || item.reviewStatus === "rejected" ? item.reviewStatus : "pending",

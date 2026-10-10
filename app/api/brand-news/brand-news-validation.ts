@@ -82,7 +82,11 @@ export function validateBrandNews(value: unknown): BrandNewsSnapshot {
     const postUrl = url(item.url);
     if (!matchesPost(postUrl, source)) throw new Error("Mismatched news source");
     if (!Array.isArray(item.warnings) || item.warnings.length > 100) throw new Error("Invalid news warnings");
+    // Older published snapshots remain readable until the next scheduled export.
+    if (item.imageUrls != null && (!Array.isArray(item.imageUrls) || item.imageUrls.length > 20)) throw new Error("Invalid news images");
+    const imageUrls = [...new Set(((item.imageUrls ?? []) as unknown[]).map(url))];
     return { id: text(item.id, 200), brandId: source.brandId, brandName: source.brandName, title: text(item.title),
+      imageUrls, excerpt: item.excerpt == null ? null : text(item.excerpt, 2000),
       category: choice(item.category, ["collaboration", "frame", "event", "partnership", "news"]),
       publishedOn: day(item.publishedOn), startsOn: day(item.startsOn), endsOn: day(item.endsOn), url: postUrl, observedAt: time(item.observedAt),
       reviewStatus: choice(item.reviewStatus, ["pending", "approved", "rejected"]), warnings: item.warnings.map((value) => text(value, 100)) };

@@ -265,6 +265,8 @@ export type BrandNewsRecord = {
   brandId: string;
   brandName: string;
   title: string;
+  imageUrls: string[];
+  excerpt: string | null;
   category: "collaboration" | "frame" | "event" | "partnership" | "news";
   publishedOn: string | null;
   startsOn: string | null;

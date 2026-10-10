@@ -6,6 +6,7 @@ import { parseInstagramMetadata } from "./instagram-metadata.mjs";
 import { checkInstagramNavigation, InstagramAccessError } from "./instagram-access.mjs";
 import { watchInstagramNetwork } from "./instagram-network.mjs";
 import { recordPostFailure, selectPosts } from "./post-policy.mjs";
+import { instagramImages } from "./instagram-media.mjs";
 
 const escape = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
@@ -69,15 +70,22 @@ export async function fetchPublicInstagramHtml(source, { limit = 12, snapshotDir
           url: document.querySelector("meta[property='og:url']")?.content,
           description: document.querySelector("meta[property='og:description']")?.content,
           image: document.querySelector("meta[property='og:image']")?.content,
+          documents: (() => {
+            let size = 0;
+            return Array.from(document.querySelectorAll("script[type='application/json'],script[type='application/ld+json']")).map((script) => script.textContent ?? "").filter((text) => {
+              size += text.length; return size <= 2_000_000;
+            });
+          })(),
         })));
         stage = "parse";
         if (!parseInstagramMetadata(item.description, source.account) || item.url !== href) throw new InstagramAccessError("Instagram post metadata or author did not match", "layout-changed");
-        articles.push(`<article data-post-url="${escape(item.url)}" data-description="${escape(item.description)}" data-image="${escape(item.image)}"></article>`);
+        const images = instagramImages(item.documents, new URL(href).pathname.split("/").at(-2), item.image);
+        articles.push(`<article data-post-url="${escape(item.url)}" data-description="${escape(item.description)}" data-image="${escape(images[0] ?? item.image)}" data-images="${escape(JSON.stringify(images))}"></article>`);
         failures = failures.filter((failure) => failure.url !== href);
         consecutiveDetailFailures = 0;
       } catch (error) {
         lastFailure = error instanceof InstagramAccessError ? error : new InstagramAccessError("Instagram detail unavailable or layout changed", "layout-changed");
-        if (attempted) {
+        if (attempted && !lastFailure.stopSource) {
           failedDetails += 1;
           failures = failures.filter((failure) => failure.url !== href).concat(recordPostFailure(href, stage, lastFailure, failedPosts.find((failure) => failure.url === href), observedAt));
         }

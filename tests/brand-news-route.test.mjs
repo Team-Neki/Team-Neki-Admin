@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { startTestServer } from "./server-test-helper.mjs";
+import { validateBrandNews } from "../app/api/brand-news/brand-news-validation.ts";
 
 const snapshot = {
   schemaVersion: 1, generatedAt: "2026-10-10T00:00:00Z",
@@ -16,6 +17,16 @@ const snapshot = {
     ["harufilm-news", "brand-04", "하루필름", "https://harufilm.com/301"],
   ].map(([key, brandId, brandName, url]) => ({ key, brandId, brandName, url, status: "ok", recordCount: 0, failedPosts: [] })), records: [],
 };
+
+test("brand news image contract retains source order and rejects unsafe gallery URLs", () => {
+  const record = { id: "brand-01:lifefourcuts-instagram:POST123", brandId: "brand-01", brandName: "인생네컷", title: "프레임", category: "frame", url: "https://www.instagram.com/life4cuts_official/p/POST123/", reviewStatus: "pending", warnings: [], imageUrls: ["https://scontent.cdninstagram.com/one.jpg", "https://scontent.cdninstagram.com/two.jpg"], excerpt: "수집된 게시 내용" };
+  const data = { ...snapshot, sources: snapshot.sources.map((source, index) => ({ ...source, recordCount: index === 0 ? 1 : 0 })), records: [record] };
+  const validated = validateBrandNews(data);
+  assert.deepEqual(validated.records[0].imageUrls, record.imageUrls);
+  assert.equal(validated.records[0].excerpt, record.excerpt);
+  assert.throws(() => validateBrandNews({ ...data, records: [{ ...record, imageUrls: ["javascript:alert(1)"] }] }));
+  assert.deepEqual(validateBrandNews({ ...data, records: [{ ...record, imageUrls: undefined, excerpt: undefined }] }).records[0].imageUrls, []);
+});
 
 test("brand news serves a shared validated snapshot and does not rescrape on refresh", async () => {
   const directory = await mkdtemp(join(tmpdir(), "neki-brand-news-"));

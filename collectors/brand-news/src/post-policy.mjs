@@ -16,6 +16,6 @@ export function selectPosts(posts, { knownRecords = [], failedPosts = [], observ
   const fresh = posts.filter((url) => !known.has(url) && !failures.has(url));
   const retry = failedPosts.filter((failure) => allowed(failure.url)).map((failure) => failure.url);
   // Refresh known captions/media at most daily; ordinary scans only discover new IDs.
-  const refresh = posts.filter((url) => known.has(url) && allowed(url) && timestamp - Date.parse(known.get(url).observedAt ?? known.get(url).lastSeenAt ?? "") >= 24 * HOUR);
+  const refresh = posts.filter((url) => known.has(url) && allowed(url) && (!Array.isArray(known.get(url).imageUrls) || timestamp - Date.parse(known.get(url).observedAt ?? known.get(url).lastSeenAt ?? "") >= 24 * HOUR));
   return [...new Set([...fresh, ...retry, ...refresh])].slice(0, limit);
 }

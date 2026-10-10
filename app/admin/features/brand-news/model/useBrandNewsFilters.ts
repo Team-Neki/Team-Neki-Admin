@@ -12,7 +12,9 @@ export function useBrandNewsFilters() {
   const params = new URLSearchParams(search);
   const parsedPage = Number(params.get("newsPage"));
   return {
+    search,
     query: params.get("newsQuery") ?? "",
+    detailId: params.get("newsId") ?? "",
     brand: params.get("newsBrand") ?? "all",
     tab: params.get("newsTab") === "sources" ? "sources" : "posts",
     page: Number.isSafeInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1,
