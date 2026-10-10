@@ -1,0 +1,21 @@
+{
+  "name": "@neki/brand-news-collector",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "exports": "./src/index.mjs",
+  "scripts": {
+    "collect": "node src/cli.mjs",
+    "pipeline": "node src/pipeline-cli.mjs",
+    "report": "node src/report-cli.mjs",
+    "export": "node src/export-cli.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "cheerio": "1.2.0",
+    "playwright-core": "^1.58.2"
+  }
+}

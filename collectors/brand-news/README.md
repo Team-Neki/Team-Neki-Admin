@@ -1,0 +1,106 @@
+# 브랜드 소식 수집기
+
+공식 공개 게시판·갤러리·Instagram을 읽어 프레임·콜라보·이벤트 **후보**를 JSON에 저장하는 독립 Node.js 패키지다. Next.js, 관리자 UI, Amplitude, 데이터베이스에 의존하지 않는다. 이 디렉터리만 다른 저장소로 옮겨도 실행할 수 있다. API 키와 SNS 로그인은 사용하지 않는다.
+
+## 실행
+
+Node.js 22.13 이상에서 이 디렉터리를 기준으로 실행한다.
+
+```sh
+npm ci
+npm test
+npm run collect
+
+# 수집 → 정규화 → 검증 → JSON 산출물과 보고서 생성
+npm run pipeline
+
+# 외부 요청 없이 저장된 원문 후보로 산출물 재생성
+npm run pipeline -- --offline
+```
+
+기본 출력은 `data/state.json`(누적 상태)과 `data/latest.json`(이번 결과)이다. 로컬 `data/`와 `node_modules/`는 Git에서 제외된다. 예외적으로 기존 실제 수집 196건의 공개 초기 상태는 `bootstrap/state.json`에 포함한다. SNS 세션·헤더·Sites 프로젝트는 포함하지 않는다.
+
+파이프라인은 기본 `data/artifacts/<생성시각>-<실행ID>/`에 전체 정규화 데이터, 프레임/이벤트 후보, 검토 목록, 격리 목록, 품질/커버리지 JSON, 파일 해시, 한국어 `REPORT.md`를 만든다. `--artifacts <경로>`로 위치를 지정할 수 있다. 정규화 계약은 [SCHEMA.md](SCHEMA.md)를 따른다. 실패 출처나 격리/유효성 오류가 있으면 보고서는 남기되 종료 코드 1을 반환한다.
+
+현재 대상은 포토이즘·포토그레이·인생네컷·포토시그니처·하루필름·돈룩업 6개다. 포토시그니처·하루필름은 공식 HTML, 포토이즘·포토그레이·인생네컷·돈룩업은 공식 홈페이지가 연결한 Instagram 공개 화면을 읽는다. 인생네컷은 `@life4cuts_official` / `lifefourcuts-instagram`을 사용한다. 기존 웹 갤러리의 `lifefourcuts-frames` 기록은 상태 파일에 보존하되 기본 실행·보고서·정규화 산출물에서 제외한다. 다른 브랜드의 기존 상태 파일도 삭제하지 않지만 기본 실행·보고서에서 제외한다. 대상 목록은 `src/collection-scope.mjs`에서 관리한다.
+
+SNS 수집에는 Chrome이 필요하다. macOS 기본 경로는 `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`이며 다른 환경에서는 `BRAND_NEWS_CHROME_PATH`에 실행 파일 경로를 지정한다. `playwright-core`만 설치하며 브라우저 자체는 다운로드하지 않는다. 새로운 익명 컨텍스트로 프로필과 최대 12개 상세 게시물을 순차 조회한다. 상세 이동 간격은 2초이고 이미지·영상·폰트 요청은 차단한다. 저장된 로그인 세션이나 비공개 API는 사용하지 않는다. 공동 게시물 중 다른 계정 경로로 연결되는 글은 제외한다.
+
+브라우저에서 읽은 공개 메타데이터는 `data/public-snapshots/<source-key>.html`에 최소 HTML로 남긴다. 댓글·쿠키·브라우저 세션을 저장하지 않으며 이 파일도 Git과 Sites 배포에서 제외된다. 게시일과 캡션을 재파싱하는 실험은 이 저장본으로 할 수 있다. 전체 원본 DOM을 보관하는 것은 아니다. Instagram CDN 이미지의 쿼리·서명만 변경되면 새 URL을 저장하되 재검토로 돌리지 않는다. 이미지 경로나 본문이 바뀌면 재검토한다. URL 갱신이 이미지의 영구 보관을 뜻하지는 않는다.
+
+`npm run report`는 외부 수집 요청이나 서버 실행 없이 저장본에서 `data/brand-news-report.html` 한 파일만 생성한다. 이 파일을 브라우저에서 직접 열면 된다. 6개 브랜드의 출처·수집 방법·추출 항목·제약과 결과를 표시하며 미수집 브랜드도 결과 표에서 숨기지 않는다. 이미지·게시일·기간·원문 링크도 포함한다. 서버 없이 열리며 이미지 표시에만 원문 이미지 URL을 요청한다. 만료·접근 차단으로 이미지가 실패하면 보고서 안의 작은 스크립트가 깨진 이미지를 제거하고 원문 링크를 보여준다. 이미지 자체를 복제하거나 영구 보관하지는 않는다. 저장된 관측일과 HTML 생성 시각을 구분한다. 수집 방법 설명은 `src/source-methods.mjs`에서 갱신한다. `npm run pipeline`은 같은 범위의 HTML과 JSON 산출물 묶음을 생성한다.
+
+```sh
+# 특정 출처만 조회
+npm run collect -- --source harufilm-news
+
+# 파일 위치 지정
+npm run collect -- --state /absolute/path/state.json --output /absolute/path/latest.json
+
+# 성공 출처의 6시간 쿨다운을 무시하고 재검증
+npm run collect -- --force
+```
+
+`--force`도 실패 출처의 재시도 대기 시간은 무시하지 않는다. 출처 선택지는 `npm run collect -- --help`에서 확인한다. 실행 디렉터리를 기준으로 상대 경로를 해석한다.
+
+## 이전 실제 접속 검증 — 2026-09-26
+
+아래는 범위 축소 전의 이력이다. 현재 기본 실행·HTML에는 선택한 6개 브랜드만 포함하고, 저장본은 그중 포토시그니처 12건·하루필름 100건이다.
+
+| 브랜드 | 공개 출처 | 정상 추출 |
+| --- | --- | ---: |
+| 포토시그니처 | [한정판 프레임](https://photosignature.co.kr/bbs/board.php?bo_table=frame) | 12 |
+| 하루필름 | [공지](https://harufilm.com/301) | 100 |
+| 포토매틱 | [공지·이벤트](https://www.photomatic.co.kr/NOTICE) | 12 |
+| 픽닷 | [공식 블로그 RSS](https://rss.blog.naver.com/picdot_official.xml) | 50 |
+
+총 174건은 뉴스와 종료 이벤트를 포함한 **원문 후보**다. 현재 촬영 가능한 프레임 174개라는 뜻이 아니다. 날짜 없는 값은 추정하지 않는다. 픽닷의 RSS 발행 시각은 한국 날짜로 정규화한다. 신규·수정 여부는 원문 ID와 제목·요약·날짜·이미지 URL의 해시로 판단한다. 상세 페이지/이미지 내부의 변경까지 감지하지는 않는다.
+
+과거 17개 브랜드 등록부와 파서는 이력용으로 유지한다. 전수 조사는 [출처 조사](../../docs/research/frame-source-audit.md)에 기록되어 있다. 2026-09-27에 공식 갤러리와 로그인 없는 SNS 상세 메타데이터 추출을 추가 검증했고, 2026-10-10에 인생네컷의 활성 출처를 공식 Instagram으로 전환했다. 이전 조사의 ‘SNS 미검증’은 당시 상태이며 현재 구현과 구분한다. 인생네컷의 이전 웹 갤러리는 과거 기록으로 남긴다. 포토이즘 /287 갤러리는 일반 촬영 샘플이므로 신규 프레임 후보로 수집하지 않는다.
+
+## 처리 구조
+
+```text
+공개 HTML / 익명 브라우저 메타데이터 → 출처별 파서 → 정규화/중복 제거 → 신규·수정 비교 → JSON 상태
+```
+
+- `src/sources.mjs`: 과거 조사한 17개 브랜드와 수집원 카탈로그. `brand-XX`는 조사 대응 키이며 웹 앱에서 import하지 않는다.
+- `src/collection-scope.mjs`: 현재 실행·보고서 대상 6개 브랜드와 등록된 요청 출처 6곳.
+- `src/instagram-browser.mjs`: 로그인 없는 공개 프로필·상세 메타데이터의 제한된 순차 수집.
+- `src/instagram-access.mjs`: 접근 제한 분류, 서버 대기 시간 해석, 이미지 서명 제외 식별자.
+- `src/collection-policy.mjs`: 부분 실패 판정, 출처별 실패 누적과 재시도 시간 계산.
+- `src/report-cli.mjs`: 저장본에서 서버 없이 단일 HTML 생성.
+- `src/parse.mjs`: 원문 ID·제목·게시일·이미지 링크·기간/요약 추출. 프레임/콜라보/이벤트/제휴/소식 분류는 제목 기반 검토 힌트다.
+- `src/collect.mjs`: 순차 요청, 20초 타임아웃, 응답 2MB 제한, 일시적 오류에만 최대 3회 재시도.
+- `src/merge.mjs`: 신규 upsert, 변경 시 재검토, 목록에서 사라진 원문 보존.
+- `src/runner.mjs`: 출처별 쿨다운, 동시 실행 잠금, 원자적 JSON 저장.
+- `src/cli.mjs`: 실행 인자·결과 요약·종료 코드.
+- `src/index.mjs`: 다른 수집 서비스가 사용할 공개 함수.
+- `src/normalize.mjs`: 출처/브랜드 검증, 공통 스키마, 날짜·URL 정리, 상충 중복 격리.
+- `src/quality.mjs`: 누락 비율, 키 유일성, 기간 유효성, 브랜드별 커버리지 점검.
+- `src/artifacts.mjs`: 산출물과 한국어 실행 보고서, SHA-256 manifest.
+- `src/pipeline.mjs`: 수집→정규화→품질 검사→산출물 저장 연결. 오프라인 처리 지원.
+
+성공 출처는 기본 6시간 동안 다시 요청하지 않는다. 실패는 요청 제한 6시간, 로그인·인증·접근 거부 12시간, 구조 변경 1시간, 그 외 부분 실패 30분, 일반 오류 15분부터 대기한다. 연속 실패마다 2배로 늘려 24시간까지 적용하며 서버 `Retry-After`가 더 길면 우선한다. HTTP 429는 즉시 재요청하지 않는다. 한 출처가 실패해도 다른 출처의 성공 결과는 저장하고, 이전 후보와 마지막 전체 성공 시각은 보존한다. 종료 코드 `1`은 출처 오류·부분 실패·재시도 대기·실행 오류, `0`은 정상/캐시 실행이다.
+
+Instagram은 HTTP 429·401/403·로그인/인증 URL이면 해당 출처의 나머지 상세 이동을 중단한다. 메타데이터 실패는 3회 연속이면 중단한다. 출처별 기본 120초 예산은 후속 이동·대기를 제한하며 브라우저 종료 시간까지 보장하는 프로세스 강제 종료 장치는 아니다. 일부만 읽으면 `partial`로 저장하고 수집한 글과 기존 글을 모두 보존한다. `consecutiveFailures`, `lastAttemptAt`, `lastPartialAt`, `nextAttemptAt`이 상태에 남아 다음 프로세스도 같은 대기를 따른다. 정상화하면 실패 누적과 재시도 시각을 초기화한다.
+
+`state.json`에는 `schemaVersion`, `lastRunAt`, 누적 `records`, 출처별 `diagnostics`가 들어간다. 기록은 `firstSeenAt`, `lastSeenAt`, `sourceChangedAt`, `reviewStatus`를 가진다. 수정되면 `reviewStatus=pending`으로 돌아간다. `availability=unverified`이며 자동 공개하지 않는다. 상세 변경 버전 전체를 보존하는 데이터베이스는 아직 없다.
+
+파일 잠금은 동일 저장 경로의 로컬 동시 실행을 막는다. 비정상 종료로 `state.json.lock`이 남으면 해당 프로세스가 종료됐는지 확인하고 잠금만 제거해야 한다. 다중 서버·네트워크 파일시스템의 분산 잠금으로 사용하면 안 된다. 상태 파일이 깨졌으면 덮어쓰지 않고 실패한다.
+
+## 운영 경계
+
+추출 성공과 무인 운영 검증은 다르다. [OPERATIONS.md](OPERATIONS.md)에 운영 판정, 장애 주입 검증, 아직 연결하지 않은 운영 요소를 기록한다.
+
+- 현재 웹 목록 첫 페이지와 SNS 공개 목록 최대 12개만 조회한다. 과거 전체 백필이나 첫 페이지 밖의 신규 글은 보장하지 않는다. 성공 건수는 공식 소식 전체 수가 아니다.
+- 이미지 URL만 저장한다. 이미지 다운로드·OCR·재배포는 하지 않는다.
+- SNS 로그인·CAPTCHA·인증서 검증을 우회하지 않는다. 호출 가능성은 자동 수집/재배포 이용 허락과 별개이므로 운영 전 각 출처의 정책과 권리를 확인해야 한다.
+- GitHub Actions 예약 수집과 Next.js 조회 탭을 구성했다. PR 머지 후 `collect-brand-news`를 처음 실행하면 데이터 브랜치가 만들어진다. Sites는 이 경로에서 사용하지 않는다. [어드민 연결·운영 절차](../../docs/operations/brand-news-collection.md)를 따른다.
+- 실행 중 통과한 테스트와 실측 수치 외에 전 브랜드 자동 수집을 보장하지 않는다.
+
+## 증분 수집과 공유 데이터
+
+Instagram document뿐 아니라 1차 도메인의 XHR/fetch 응답도 감시해 429·접근 제한을 중단 조건으로 삼는다. 신규 게시물, 재시도 기한이 된 실패 게시물, 하루 이상 지난 기존 게시물 순으로 최대 12개를 읽는다. 이미 저장된 최신 글의 상세를 매번 다시 열지 않는다. 개별 실패는 URL·실패 단계·횟수·다음 시각을 기록하고 3회면 `needs-review`로 중단한다. 파싱 오류는 게시물별 큐로 관리하고 출처 접근 제한은 별도 출처 백오프를 우선한다.
+
+`npm run export -- --state bootstrap/state.json`은 외부 수집 없이 어드민 계약의 `data/brand-news.json`을 만든다. `scheduled-cli.mjs`는 GitHub의 `data/brand-news` 상태를 복원한 뒤 수집하고 allowlist 상태·정규화 조회 JSON만 게시한다. 두 파일은 앱 코드 없는 데이터 브랜치에 저장된다. `GITHUB_TOKEN` 외 SNS 인증 키는 쓰지 않는다. 머지 후의 예약 실행과 GitHub runner에서의 실제 Instagram 접근 성공률은 아직 검증하지 않았다.
