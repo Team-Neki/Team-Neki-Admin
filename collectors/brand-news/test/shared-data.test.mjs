@@ -19,6 +19,16 @@ test("initial public snapshot reconciles all six brands without private artifact
   assert.ok(snapshot.records.every((record) => record.reviewStatus === "pending"));
 });
 
+test("repaired opening cards retain verified full photographs instead of cropped OG thumbnails", () => {
+  const snapshot = createPublicSnapshot(bootstrap);
+  for (const shortcode of ["DeTtk7ICe_v", "DeRIwoCjDOk", "DeTEajcCms0", "DeTY_f4F56A"]) {
+    const record = snapshot.records.find((item) => item.id.endsWith(`:${shortcode}`));
+    assert.ok(record?.imageUrls.length);
+    assert.doesNotMatch(new URL(record.imageUrls[0]).searchParams.get("stp") ?? "", /(?:^|_)c\d+\./);
+  }
+  assert.equal(snapshot.records.find((item) => item.id.endsWith(":DeTtk7ICe_v")).imageUrls.length, 2);
+});
+
 test("GitHub publication creates an isolated root and refuses force updates", async () => {
   const calls = [];
   const fetchImpl = async (url, options) => {

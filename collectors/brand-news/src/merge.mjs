@@ -1,4 +1,16 @@
 import { contentFingerprint } from "./content-fingerprint.mjs";
+import { stableImageIdentity } from "./instagram-access.mjs";
+import { isCroppedInstagramImage } from "./instagram-image-quality.mjs";
+
+function preserveFullPhotograph(candidate, earlier) {
+  if (!isCroppedInstagramImage(candidate.imageUrl) || !earlier?.imageUrl || isCroppedInstagramImage(earlier.imageUrl)
+    || stableImageIdentity(candidate.imageUrl) !== stableImageIdentity(earlier.imageUrl)
+    || (candidate.imageUrls?.length ?? 0) > 1) return candidate;
+  // An OG-only refresh is not evidence that a verified full photograph/gallery
+  // disappeared. Keep its URL intact until the source supplies a full refresh.
+  const result = { ...candidate, imageUrl: earlier.imageUrl, imageUrls: earlier.imageUrls ?? [earlier.imageUrl], mediaObservedAt: earlier.mediaObservedAt };
+  return { ...result, fingerprint: contentFingerprint(result), fingerprintVersion: 2 };
+}
 
 export function mergeCandidates(previous, current) {
   const records = new Map((previous?.records ?? []).map((record) => [record.id, record]));
@@ -6,8 +18,9 @@ export function mergeCandidates(previous, current) {
   let changed = 0;
   const insertedIds = [];
   const changedIds = [];
-  for (const candidate of current.candidates) {
-    const earlier = records.get(candidate.id);
+  for (const incoming of current.candidates) {
+    const earlier = records.get(incoming.id);
+    const candidate = preserveFullPhotograph(incoming, earlier);
     if (!earlier) {
       records.set(candidate.id, {
         ...candidate,

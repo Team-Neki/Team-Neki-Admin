@@ -73,7 +73,8 @@ export async function fetchPublicInstagramHtml(source, { limit = 12, snapshotDir
           documents: (() => {
             let size = 0;
             return Array.from(document.querySelectorAll("script[type='application/json'],script[type='application/ld+json']")).map((script) => script.textContent ?? "").filter((text) => {
-              size += text.length; return size <= 2_000_000;
+              if (size + text.length > 2_000_000) return false;
+              size += text.length; return true;
             });
           })(),
         })));
