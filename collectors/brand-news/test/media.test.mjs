@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { instagramImages } from "../src/instagram-media.mjs";
 import { websiteImages, enrichWebsiteImages } from "../src/website-media.mjs";
 import { selectedPages } from "../src/collection-scope.mjs";
+import { mergeCandidates } from "../src/merge.mjs";
+import { contentFingerprint } from "../src/content-fingerprint.mjs";
 
 const image = (name) => `https://scontent.cdninstagram.com/${name}.jpg`;
 const signature = selectedPages.find((source) => source.parser === "photosignature");
@@ -15,6 +17,49 @@ test("Instagram carousel belongs to the exact shortcode, in source order, withou
   assert.deepEqual(instagramImages([document], "POST123", image("cover")), [image("first"), image("second")]);
   assert.deepEqual(instagramImages([document], "UNSEEN123", image("cover")), [image("cover")]);
   assert.deepEqual(instagramImages(["malformed"], "POST123", undefined), []);
+});
+
+test("Instagram prefers uncropped photographs over larger square thumbnails without rewriting signatures", () => {
+  const original = `${image("portrait")}?stp=dst-jpg_e35_tt6&oh=original-signature`;
+  const crop = `${image("portrait")}?stp=c0.135.1080.1080a_dst-jpg_e35_s1080x1080_tt6&oh=crop-signature`;
+  const post = { code: "POST123", image_versions2: { candidates: [
+    { width: 1080, height: 1080, url: crop }, { width: 720, height: 900, url: original },
+  ] } };
+  assert.deepEqual(instagramImages([JSON.stringify(post)], "POST123", crop), [original]);
+});
+
+test("later thumbnail-only copies cannot replace the full detail gallery", () => {
+  const full = { code: "POST123", carousel_media: ["first", "second"].map((name) => ({ image_versions2: { candidates: [{ width: 1080, height: 1350, url: image(name) }] } })) };
+  const thumbnail = { code: "POST123", carousel_media: [{ display_url: `${image("first")}?stp=c216.0.648.648a_dst-jpg_e35_s640x640_tt6` }] };
+  for (const documents of [[full, thumbnail], [thumbnail, full]]) {
+    assert.deepEqual(instagramImages(documents.map(JSON.stringify), "POST123", image("og")), [image("first"), image("second")]);
+  }
+});
+
+test("unsafe high-resolution candidates do not hide safe images and single-image posts are supported", () => {
+  const post = { shortcode: "POST123", display_url: "javascript:bad", image_versions2: { candidates: [
+    { width: 2000, height: 2500, url: "https://evil.example/image.jpg" }, { width: 1080, height: 1350, url: image("safe") },
+  ] } };
+  assert.deepEqual(instagramImages([JSON.stringify(post)], "POST123", image("og")), [image("safe")]);
+});
+
+test("an OG-only scheduled refresh cannot undo a repaired full photograph and gallery", () => {
+  const first = { id: "POST123", title: "프레임", imageUrl: image("first"), imageUrls: [image("first"), image("second")], fingerprintVersion: 2, mediaObservedAt: "2026-10-11T00:00:00Z" };
+  first.fingerprint = contentFingerprint(first);
+  const previous = mergeCandidates(null, { candidates: [first], diagnostics: [], observedAt: "2026-10-11T00:00:00Z" }).state;
+  previous.records[0].reviewStatus = "approved";
+  const crop = `${image("first")}?stp=c216.0.648.648a_dst-jpg_e35_s640x640_tt6&oh=fresh`;
+  const incoming = { ...first, imageUrl: crop, imageUrls: [crop] };
+  incoming.fingerprint = contentFingerprint(incoming);
+  const merged = mergeCandidates(previous, { candidates: [incoming], diagnostics: [], observedAt: "2026-10-12T00:00:00Z" });
+  assert.deepEqual(merged.state.records[0].imageUrls, first.imageUrls);
+  assert.equal(merged.state.records[0].imageUrl, first.imageUrl);
+  assert.equal(merged.state.records[0].mediaObservedAt, first.mediaObservedAt);
+  assert.equal(merged.changed, 0);
+  assert.equal(merged.state.records[0].reviewStatus, "approved");
+  incoming.title = "수정된 프레임";
+  incoming.fingerprint = contentFingerprint(incoming);
+  assert.equal(mergeCandidates(previous, { candidates: [incoming], diagnostics: [], observedAt: "2026-10-12T00:00:00Z" }).changed, 1);
 });
 
 test("website detail selectors exclude logos, comments and untrusted images", () => {
