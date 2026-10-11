@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { parseNewsCategory } from "./brand-news";
 
 const subscribe = (onChange: () => void) => {
   window.addEventListener("popstate", onChange);
@@ -16,6 +17,7 @@ export function useBrandNewsFilters() {
     query: params.get("newsQuery") ?? "",
     detailId: params.get("newsId") ?? "",
     brand: params.get("newsBrand") ?? "all",
+    category: parseNewsCategory(params.get("newsCategory")),
     tab: params.get("newsTab") === "sources" ? "sources" : "posts",
     page: Number.isSafeInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1,
     sort: params.get("newsSort") === "brand" ? "brand" : "published",
