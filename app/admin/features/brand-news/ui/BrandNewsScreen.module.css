@@ -1,6 +1,7 @@
 .card :global(.ant-tabs-nav) { padding-inline: 20px; }
 .filters { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; padding: 4px 20px 0; }
 .brand { min-width: 168px; }
+.category { min-width: 136px; }
 .search { width: min(340px, 100%); }
 .sort { min-width: 168px; margin-inline-start: auto; }
 .summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-bottom: 16px; padding-inline: 20px; }
@@ -61,7 +62,7 @@
 @media (max-width: 1180px) { .detailLayout { gap: 24px; } }
 @media (max-width: 680px) {
   .filters { flex-direction: column; }
-  .brand, .search, .sort { width: 100%; margin-inline-start: 0; }
+  .brand, .category, .search, .sort { width: 100%; margin-inline-start: 0; }
   .detailLayout { grid-template-columns: minmax(0, 1fr); }
   .detailCard :global(.ant-card-body) { padding: 16px; }
   .hero { height: clamp(240px, 50svh, 480px); }

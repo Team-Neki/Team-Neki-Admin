@@ -4,7 +4,7 @@ import ReloadOutlined from "@ant-design/icons/ReloadOutlined";
 import { Alert, Button, Card, Empty, Input, Select, Spin, Table, Tabs, Tag, Typography, type TableProps } from "antd";
 import type { BrandNewsSource } from "../../../types";
 import { AdminPageHeader } from "../../../shared/ui/AdminPageHeader";
-import { failureLabel, filterNews, formatNewsTime, statusLabel } from "../model/brand-news";
+import { categoryOptions, failureLabel, filterNews, formatNewsTime, statusLabel } from "../model/brand-news";
 import { useBrandNews } from "../model/useBrandNews";
 import { useBrandNewsFilters } from "../model/useBrandNewsFilters";
 import { useNewsNavigation } from "../model/useNewsNavigation";
@@ -41,12 +41,13 @@ export function BrandNewsScreen() {
         { key: "posts", label: "소식 목록", children: <>
           <div className={styles.filters}>
             <Select className={styles.brand} aria-label="브랜드 필터" placeholder="브랜드" disabled={!data} value={data ? activeBrand : undefined} options={[{ value: "all", label: "전체 브랜드" }, ...(data?.snapshot.sources ?? []).map((source) => ({ value: source.brandId, label: source.brandName }))]} onChange={(value) => filters.update({ newsBrand: value, newsPage: "1" })} />
+            <Select className={styles.category} aria-label="카테고리 필터" value={filters.category} options={categoryOptions} disabled={!data} onChange={(value) => filters.update({ newsCategory: value === "all" ? "" : value, newsPage: "1" })} />
             <Input.Search className={styles.search} value={filters.query} onChange={(event) => filters.update({ newsQuery: event.target.value, newsPage: "1" }, true)} allowClear placeholder="브랜드·소식 검색" aria-label="브랜드 소식 검색" />
             <Select className={styles.sort} aria-label="소식 정렬" value={`${filters.sort}-${filters.direction}`} options={[{value:"published-descend",label:"게시일 최신순"},{value:"published-ascend",label:"게시일 오래된순"},{value:"brand-ascend",label:"브랜드 가나다순"},{value:"brand-descend",label:"브랜드 역순"}]} onChange={(value) => { const [newsSort, newsDirection] = value.split("-"); filters.update({newsSort, newsDirection, newsPage:"1"}); }} />
-            <Button type="text" icon={<ReloadOutlined />} disabled={filters.brand === "all" && !filters.query} onClick={() => filters.update({ newsBrand: "", newsQuery: "", newsPage: "1" })}>초기화</Button>
+            <Button type="text" icon={<ReloadOutlined />} disabled={filters.brand === "all" && filters.category === "all" && !filters.query} onClick={() => filters.update({ newsBrand: "", newsCategory: "", newsQuery: "", newsPage: "1" })}>초기화</Button>
           </div>
           <div className={styles.summary} aria-live="polite"><Text strong>{loading && !data ? "불러오는 중…" : `${records.length}건`}</Text><Text type="secondary">저장본 갱신 {formatNewsTime(data?.snapshot.generatedAt ?? null)}</Text></div>
-          <BrandNewsGrid records={records} loading={loading} error={error} filtered={!!filters.query || activeBrand !== "all"} page={currentPage} search={filters.search} onPage={(page) => filters.update({newsPage: String(page)})} onOpen={navigation.open} />
+          <BrandNewsGrid records={records} loading={loading} error={error} filtered={!!filters.query || activeBrand !== "all" || filters.category !== "all"} page={currentPage} search={filters.search} onPage={(page) => filters.update({newsPage: String(page)})} onOpen={navigation.open} />
         </> },
         { key: "sources", label: "수집 상태", children: <Table<BrandNewsSource> rowKey="key" size="small" columns={sourceColumns} dataSource={data?.snapshot.sources ?? []} loading={loading} pagination={false} scroll={{ x: 1080 }} expandable={{ rowExpandable: (record) => record.failedPosts.length > 0,
           expandedRowRender: (record) => <div className={styles.failures}>{record.failedPosts.map((failure) => <div className={styles.failure} key={failure.url}>
