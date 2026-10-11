@@ -236,3 +236,56 @@ export interface AdminAdapter {
   uploadPoses(input: PoseUploadInput[]): Promise<PoseRecord[]>;
   refreshAnalytics(query: AnalyticsMetricsQuery): Promise<AnalyticsRefreshResult>;
 }
+export type BrandNewsPostFailure = {
+  url: string;
+  stage: string;
+  code: string;
+  attempts: number;
+  lastAttemptAt: string;
+  nextAttemptAt: string | null;
+  status: "retry-pending" | "needs-review";
+};
+
+export type BrandNewsSource = {
+  key: string;
+  brandId: string;
+  brandName: string;
+  url: string;
+  status: "ok" | "cached" | "partial" | "error" | "deferred" | "pending";
+  recordCount: number;
+  lastAttemptAt: string | null;
+  lastSuccessAt: string | null;
+  nextAttemptAt: string | null;
+  failureCode: string | null;
+  failedPosts: BrandNewsPostFailure[];
+};
+
+export type BrandNewsRecord = {
+  id: string;
+  brandId: string;
+  brandName: string;
+  title: string;
+  imageUrls: string[];
+  excerpt: string | null;
+  category: "collaboration" | "frame" | "event" | "partnership" | "news";
+  publishedOn: string | null;
+  startsOn: string | null;
+  endsOn: string | null;
+  url: string;
+  observedAt: string | null;
+  reviewStatus: "pending" | "approved" | "rejected";
+  warnings: string[];
+};
+
+export type BrandNewsSnapshot = {
+  schemaVersion: 1;
+  generatedAt: string;
+  sources: BrandNewsSource[];
+  records: BrandNewsRecord[];
+};
+
+export type BrandNewsResponse = {
+  snapshot: BrandNewsSnapshot;
+  fetchedAt: string;
+  stale: boolean;
+};

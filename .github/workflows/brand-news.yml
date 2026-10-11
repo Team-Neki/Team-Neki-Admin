@@ -1,0 +1,44 @@
+name: collect-brand-news
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: brand-news-data
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: collectors/brand-news
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: collectors/brand-news/package-lock.json
+      - run: npm ci
+      - name: Locate runner Chrome
+        run: |
+          chrome_path=$(command -v google-chrome)
+          test -x "$chrome_path"
+          echo "BRAND_NEWS_CHROME_PATH=$chrome_path" >> "$GITHUB_ENV"
+      - run: npm test
+        env:
+          BRAND_NEWS_TEST_BROWSER: "1"
+      - name: Collect and publish shared JSON
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node src/scheduled-cli.mjs

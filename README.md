@@ -12,6 +12,7 @@
 - 포즈 이미지 다중 업로드·미리보기, 이미지 목록과 1~4인 필터
 - 지표 탭에서 Amplitude 이벤트 31개를 기능 영역·페이지·파라미터별 조회
 - 브랜드 관리에서 Android·iOS QR 파싱 로직과 이미지 획득 규칙 조회
+- 브랜드 소식 목록·브랜드/검색 필터·수집 상태 조회. 수집은 GitHub Actions, 공유 데이터는 `data/brand-news` 브랜치에서 관리하며 [운영 절차](docs/operations/brand-news-collection.md)를 따릅니다.
 - 조회 로딩·빈 화면·오류·재시도와 작업 성공·실패 상태
 - Figma 기반 컬러, Pretendard 타이포, 8/12/20/999px 반경 토큰
 - 반응형 레이아웃

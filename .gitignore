@@ -2,6 +2,8 @@
 
 # dependencies
 /node_modules
+**/node_modules/
+/collectors/brand-news/data/
 /.pnp
 .pnp.*
 .yarn/*

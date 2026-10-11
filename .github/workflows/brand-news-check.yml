@@ -1,0 +1,35 @@
+name: check-brand-news
+
+on:
+  pull_request:
+    paths:
+      - "collectors/brand-news/**"
+      - "app/api/brand-news/**"
+      - "app/admin/features/brand-news/**"
+      - ".github/workflows/brand-news*.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          # Existing app tests import TypeScript directly (enabled by default since 22.18).
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            collectors/brand-news/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix collectors/brand-news
+      - run: npm test --prefix collectors/brand-news
+        env:
+          BRAND_NEWS_TEST_BROWSER: "1"
+          BRAND_NEWS_CHROME_PATH: /usr/bin/google-chrome
+      - run: npm run check
