@@ -3,7 +3,6 @@
 import {
   Alert,
   App,
-  Avatar,
   Badge,
   Button,
   Card,
@@ -46,6 +45,9 @@ import { adminAdapter } from "./admin-adapter";
 import { AnalyticsScreen, useAnalyticsMetrics } from "./features/analytics";
 import { ChangelogScreen } from "./features/changelog";
 import { BrandNewsScreen } from "./features/brand-news";
+import { AdminProfile, AdminSessionBoundary, LogoutButton } from "./features/auth";
+import type { AdminUser } from "./types";
+import { InstagramMetricsScreen } from "./features/instagram";
 import { AdminPageHeader } from "./shared/ui/AdminPageHeader";
 import type {
   AddressSuggestion,
@@ -75,7 +77,7 @@ const { Header, Content, Sider } = Layout;
 const { Text, Title, Paragraph } = Typography;
 
 
-type ViewKey = "dashboard" | "notifications" | "stores" | "brands" | "brand-news" | "dictionary" | "poses" | "analytics" | "qr-parsing" | "changelog";
+type ViewKey = "dashboard" | "notifications" | "stores" | "brands" | "brand-news" | "dictionary" | "poses" | "analytics" | "instagram" | "qr-parsing" | "changelog";
 
 const EMPTY_SNAPSHOT: AdminSnapshot = { notifications: [], stores: [], brands: [], dictionaries: [], poses: [], analyticsEvents: [] };
 
@@ -88,6 +90,7 @@ const VIEW_META: Record<ViewKey, { title: string }> = {
   dictionary: { title: "사전 관리" },
   poses: { title: "포즈 관리" },
   analytics: { title: "Amplitude 지표" },
+  instagram: { title: "Instagram 지표" },
   "qr-parsing": { title: "QR 파싱 로직" },
   changelog: { title: "변경 로그" },
 };
@@ -105,6 +108,7 @@ const menuItems: MenuProps["items"] = [
       { key: "dictionary", label: "사전 관리" },
       { key: "poses", label: "포즈 관리" },
       { key: "analytics", label: "Amplitude 지표" },
+      { key: "instagram", label: "Instagram 지표" },
     ],
   },
   {
@@ -125,6 +129,7 @@ const mobileNavItems: Array<{ key: ViewKey; label: string }> = [
   { key: "dictionary", label: "사전" },
   { key: "poses", label: "포즈" },
   { key: "analytics", label: "Amplitude 지표" },
+  { key: "instagram", label: "Instagram 지표" },
   { key: "changelog", label: "변경 로그" },
 ];
 
@@ -1839,6 +1844,10 @@ function AdminWorkspace() {
     };
   }, [load]);
 
+  useEffect(() => {
+    document.title = `${VIEW_META[view].title} — Neki Admin`;
+  }, [view]);
+
   const navigate = (next: ViewKey) => {
     setView(next);
     const url = new URL(window.location.href);
@@ -1856,15 +1865,13 @@ function AdminWorkspace() {
         </button>
         <Menu mode="inline" selectedKeys={[view]} items={menuItems} onClick={({ key }) => navigate(key as ViewKey)} className="side-menu" />
         <div className="sider-footer">
-          <Button type="text" block className="logout-button">로그아웃</Button>
+          <LogoutButton />
         </div>
       </Sider>
       <Layout>
         <Header className="admin-header">
           <Flex align="center" gap={12} className="header-actions">
-            <button className="profile-button" type="button" aria-label="관리자 프로필 열기">
-              <Avatar size={36}>N</Avatar><span className="profile-copy"><strong>네키 운영자</strong><small>Super Admin</small></span>
-            </button>
+            <AdminProfile />
           </Flex>
         </Header>
         <nav className="mobile-nav" aria-label="관리 화면 이동">
@@ -1881,7 +1888,7 @@ function AdminWorkspace() {
           ))}
         </nav>
         <Content className="admin-content">
-          {view === "dashboard" ? <OverviewScreen mode={loadMode} /> : view === "brand-news" ? <BrandNewsScreen /> : view === "changelog" ? <ChangelogScreen /> : loading ? <LoadingPanel label="운영 데이터를 불러오고 있어요" /> : error ? <ErrorPanel onRetry={load} /> : (
+          {view === "dashboard" ? <OverviewScreen mode={loadMode} /> : view === "brand-news" ? <BrandNewsScreen /> : view === "instagram" ? <InstagramMetricsScreen /> : view === "changelog" ? <ChangelogScreen /> : loading ? <LoadingPanel label="운영 데이터를 불러오고 있어요" /> : error ? <ErrorPanel onRetry={load} /> : (
             <>
               {view === "notifications" && <NotificationScreen records={data.notifications} setRecords={(update) => setData((current) => ({ ...current, notifications: typeof update === "function" ? update(current.notifications) : update }))} />}
               {view === "stores" && <StoreScreen stores={data.stores} brands={data.brands} setStores={(update) => setData((current) => ({ ...current, stores: typeof update === "function" ? update(current.stores) : update }))} />}
@@ -1898,7 +1905,7 @@ function AdminWorkspace() {
   );
 }
 
-export default function AdminApp() {
+export default function AdminApp({ user }: { user: AdminUser | null }) {
   return (
     <ConfigProvider locale={koKR} theme={{
       token: {
@@ -1935,7 +1942,7 @@ export default function AdminApp() {
         Modal: { titleFontSize: 18 },
       },
     }}>
-      <App><AdminWorkspace /></App>
+      <App><AdminSessionBoundary user={user}><AdminWorkspace /></AdminSessionBoundary></App>
     </ConfigProvider>
   );
 }

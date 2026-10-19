@@ -289,3 +289,78 @@ export type BrandNewsResponse = {
   fetchedAt: string;
   stale: boolean;
 };
+
+export type AdminUser = { name: string; email: string; expiresAt: string };
+
+export type InstagramMetricValue = number | null;
+
+export type InstagramPostMetric = {
+  id: string;
+  title: string;
+  mediaType: "게시물" | "릴스" | "캐러셀";
+  thumbnailUrl: string | null;
+  permalink: string | null;
+  publishedAt: string;
+  views: InstagramMetricValue;
+  comments: InstagramMetricValue;
+  shares: InstagramMetricValue;
+  saves: InstagramMetricValue;
+  reach: InstagramMetricValue;
+  profileVisits: InstagramMetricValue;
+};
+
+export type InstagramMetricsSnapshot = {
+  source: "instagram";
+  username: string;
+  startDate: string;
+  endDate: string;
+  fetchedAt: string;
+  followers: InstagramMetricValue;
+  reach: InstagramMetricValue;
+  likes: InstagramMetricValue;
+  views: InstagramMetricValue;
+  trend: Array<{ date: string; reach: InstagramMetricValue; periodEndsAt: string }>;
+  posts: InstagramPostMetric[];
+  nextCursor: string | null;
+  warnings: string[];
+  storage?: { readFrom: "meta" | "file"; savedAt: string | null };
+};
+
+export type InstagramMediaAsset = {
+  id: string;
+  type: "image" | "video";
+  url: string | null;
+  thumbnailUrl: string | null;
+};
+
+export type InstagramMediaDetail = {
+  id: string;
+  username: string;
+  caption: string;
+  permalink: string | null;
+  publishedAt: string;
+  likes: InstagramMetricValue;
+  comments: InstagramMetricValue;
+  assets: InstagramMediaAsset[];
+  warnings: string[];
+};
+
+export type InstagramStoryMetric = {
+  id: string;
+  title: string;
+  thumbnailUrl: string | null;
+  publishedAt: string;
+  expiresAt: string;
+  views: InstagramMetricValue;
+  reach: InstagramMetricValue;
+  replies: InstagramMetricValue;
+  shares: InstagramMetricValue;
+};
+
+export type InstagramStoriesSnapshot = {
+  username: string;
+  fetchedAt: string;
+  stories: InstagramStoryMetric[];
+  nextCursor: string | null;
+  warnings: string[];
+};
