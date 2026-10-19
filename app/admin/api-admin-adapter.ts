@@ -1,4 +1,5 @@
 import { mockAdminAdapter } from "./mock-admin-adapter";
+import { authenticatedFetch } from "./shared/api/authenticated-fetch";
 import type {
   AdminAdapter,
   AnalyticsMetricsQuery,
@@ -52,7 +53,7 @@ const getDashboardMetrics = async (query: DashboardMetricsQuery, mode: LoadMode 
       params.set("rangeStartDate", query.rangeStartDate);
       params.set("rangeEndDate", query.rangeEndDate);
     }
-    const response = await fetch(`/api/amplitude/dashboard?${params.toString()}`, {
+    const response = await authenticatedFetch(`/api/amplitude/dashboard?${params.toString()}`, {
       headers: { Accept: "application/json" },
       cache: "default",
     });
@@ -95,7 +96,7 @@ const refreshAnalytics = async (query: AnalyticsMetricsQuery): Promise<Analytics
       endDate: query.endDate,
     });
     if (query.refresh) params.set("refresh", "1");
-    const response = await fetch(`/api/amplitude/metrics?${params.toString()}`, {
+    const response = await authenticatedFetch(`/api/amplitude/metrics?${params.toString()}`, {
       headers: { Accept: "application/json" },
       cache: "default",
     });

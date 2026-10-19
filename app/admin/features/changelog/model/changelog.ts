@@ -15,6 +15,8 @@ export const changelogReleases: ChangelogRelease[] = [
     status: "다음 버전",
     entries: [
       { type: "추가", title: "Amplitude 지표 CSV·JSON 다운로드" },
+      { type: "추가", title: "Instagram 지표 대시보드" },
+      { type: "추가", title: "Instagram 피드 상세·캐러셀·현재 스토리 조회" },
     ],
   },
   {

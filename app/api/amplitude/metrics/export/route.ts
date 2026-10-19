@@ -2,6 +2,7 @@ import { AmplitudeApiError, getAmplitudeRuntime } from "../../amplitude-client";
 import { normalizeGranularity, normalizeRange, todayInTimeZone } from "../../amplitude-dates";
 import { createAmplitudeMetricsExport, type AnalyticsExportFormat } from "../amplitude-metrics-export";
 import { getAmplitudeMetrics } from "../amplitude-metrics-server";
+import { requireAdminApi } from "../../../../server/auth/admin-access";
 
 const errorResponse = (body: Record<string, unknown>, status: number) => new Response(JSON.stringify(body), {
   status,
@@ -30,6 +31,8 @@ const parseEventNames = (value: string | null) => {
 };
 
 export async function GET(request: Request) {
+  const denied = await requireAdminApi(request);
+  if (denied) return denied;
   try {
     const runtime = getAmplitudeRuntime();
     const params = new URL(request.url).searchParams;

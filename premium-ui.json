@@ -1,0 +1,18 @@
+{
+  "profile": "product-admin",
+  "sourceRoots": ["app/admin/features/instagram"],
+  "locale": "ko-KR",
+  "canonicalMap": "UX-CONTRACT.md",
+  "requiredCapabilities": ["Date", "Scrollbar"],
+  "ownership": {
+    "Date": "typed",
+    "Scrollbar": "authored"
+  },
+  "requiredCommands": ["check"],
+  "commands": {
+    "check": "npm run check"
+  },
+  "evidence": {
+    "responsiveAndStates": "tests/rendered-html.test.mjs"
+  }
+}

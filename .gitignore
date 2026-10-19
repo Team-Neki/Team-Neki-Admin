@@ -49,6 +49,8 @@ next-env.d.ts
 /.lazyweb/
 /.product-design/
 /outputs/
+/premium-audit.json
+/.playwright-mcp/
 /work/
 
 # OpenAI Sites / Cloudflare integration is preserved only in the local history.

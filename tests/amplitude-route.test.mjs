@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { startTestServer } from "./server-test-helper.mjs";
+import { startTestServer, fetchWithTestSession as fetch } from "./server-test-helper.mjs";
 
 let providerServer;
 let unconfiguredServer;

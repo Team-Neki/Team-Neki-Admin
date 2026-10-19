@@ -1,6 +1,7 @@
 import { AmplitudeApiError, getAmplitudeRuntime } from "../amplitude-client";
 import { normalizeGranularity, normalizeRange, todayInTimeZone } from "../amplitude-dates";
 import { getAmplitudeMetrics } from "./amplitude-metrics-server";
+import { requireAdminApi } from "../../../server/auth/admin-access";
 
 const json = (body: Record<string, unknown>, status = 200, cacheControl = "no-store") => new Response(JSON.stringify(body), {
   status,
@@ -11,6 +12,8 @@ const json = (body: Record<string, unknown>, status = 200, cacheControl = "no-st
 });
 
 export async function GET(request: Request) {
+  const denied = await requireAdminApi(request);
+  if (denied) return denied;
   try {
     const runtime = getAmplitudeRuntime();
     const params = new URL(request.url).searchParams;
@@ -22,7 +25,7 @@ export async function GET(request: Request) {
       force: params.get("refresh") === "1",
       today,
     });
-    return json(payload, 200, "private, max-age=60");
+    return json(payload, 200, "private, no-store");
   } catch (error) {
     if (error instanceof AmplitudeApiError) return json({ code: error.code, message: error.message }, error.status);
     return json({ code: "amplitude_request_failed", message: "Amplitude 지표를 불러오지 못했습니다." }, 502);

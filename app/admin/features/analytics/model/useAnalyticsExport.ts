@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import type { AnalyticsGranularity } from "../../../types";
+import { authenticatedFetch } from "../../../shared/api/authenticated-fetch";
 
 export type AnalyticsExportFormat = "csv" | "json";
 
@@ -36,7 +37,7 @@ export function useAnalyticsExport() {
         endDate: query.endDate,
         events: JSON.stringify(query.eventNames),
       });
-      const response = await fetch(`/api/amplitude/metrics/export?${params.toString()}`, {
+      const response = await authenticatedFetch(`/api/amplitude/metrics/export?${params.toString()}`, {
         headers: { Accept: format === "csv" ? "text/csv" : "application/json" },
         cache: "no-store",
       });

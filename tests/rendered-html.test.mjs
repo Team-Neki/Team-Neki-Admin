@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import test from "node:test";
-import { startTestServer } from "./server-test-helper.mjs";
+import { startTestServer, fetchWithTestSession as fetch } from "./server-test-helper.mjs";
 
 const templateRoot = new URL("../", import.meta.url);
 let testServer;
@@ -34,6 +34,7 @@ test("server-renders the Neki Admin operations shell and loading state", async (
   assert.doesNotMatch(html, /브랜드 지원 관리/);
   assert.doesNotMatch(html, /미지원 브랜드 관리/);
   assert.match(html, /포즈 관리/);
+  assert.match(html, /Instagram 지표/);
   assert.doesNotMatch(html, /모임통장/);
   assert.match(html, /운영 데이터를 불러오고 있어요/);
   assert.doesNotMatch(html, /빠른 실행|운영 알림/);
@@ -62,7 +63,7 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
     readFile(new URL("../next.config.ts", import.meta.url), "utf8"),
     readFile(new URL("../Dockerfile", import.meta.url), "utf8"),
   ]);
-  const [localStorageSource, analyticsScreen, analyticsHook, analyticsExportHook, analyticsModel, analyticsExportRoute, analyticsExportServer, changelogScreen, changelogModel, adminPageHeader] = await Promise.all([
+  const [localStorageSource, analyticsScreen, analyticsHook, analyticsExportHook, analyticsModel, analyticsExportRoute, analyticsExportServer, changelogScreen, changelogModel, adminPageHeader, instagramIndex, instagramScreen, instagramModel] = await Promise.all([
     readFile(new URL("../app/admin/local-admin-storage.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/features/analytics/ui/AnalyticsScreen.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/features/analytics/model/useAnalyticsMetrics.ts", import.meta.url), "utf8"),
@@ -73,6 +74,9 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
     readFile(new URL("../app/admin/features/changelog/ui/ChangelogScreen.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/features/changelog/model/changelog.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/shared/ui/AdminPageHeader.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/admin/features/instagram/index.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/admin/features/instagram/ui/InstagramMetricsScreen.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/admin/features/instagram/model/instagram-metrics.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(page, /AdminApp/);
@@ -118,8 +122,36 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(changelogModel, /version: "v2"/);
   assert.match(changelogModel, /status: "다음 버전"/);
   assert.match(changelogModel, /Amplitude 지표 CSV·JSON 다운로드/);
+  assert.match(changelogModel, /Instagram 지표 대시보드/);
   assert.match(changelogModel, /version: "v1"/);
   assert.match(adminApp, /from "\.\/features\/analytics"/);
+  assert.match(adminApp, /from "\.\/features\/instagram"/);
+  assert.match(adminApp, /instagram: \{ title: "Instagram 지표" \}/);
+  assert.match(adminApp, /key: "instagram", label: "Instagram 지표"/);
+  assert.match(adminApp, /view === "instagram" \? <InstagramMetricsScreen \/>/);
+  assert.match(adminApp, /document\.title = `\$\{VIEW_META\[view\]\.title\} — Neki Admin`/);
+  assert.match(instagramIndex, /export \{ InstagramMetricsScreen \}/);
+  assert.match(instagramScreen, /<AdminPageHeader title="Instagram 지표" action=/);
+  assert.match(instagramScreen, /팔로워 수/);
+  assert.match(instagramScreen, /총 좋아요수/);
+  assert.match(instagramScreen, /총 조회수/);
+  assert.match(instagramScreen, /일별 도달 추이/);
+  assert.match(instagramScreen, /게시물별 성과/);
+  assert.match(instagramScreen, /title: "댓글"/);
+  assert.match(instagramScreen, /title: "공유"/);
+  assert.match(instagramScreen, /title: "저장"/);
+  assert.match(instagramScreen, /title: "프로필 방문"/);
+  assert.match(instagramScreen, /<DatePicker\.RangePicker/);
+  assert.match(instagramScreen, /pagination=\{false\}/);
+  assert.match(instagramModel, /INSTAGRAM_RANGE_OPTIONS/);
+  assert.doesNotMatch(instagramModel, /getMockInstagramMetrics|postSeeds|Math\.sin/);
+  assert.match(instagramScreen, /useInstagramMetrics/);
+  assert.match(instagramScreen, /전체 게시물 · 누적 성과/);
+  assert.match(instagramScreen, /<Tabs activeKey=\{contentTab\}/);
+  assert.match(instagramScreen, /<InstagramStoriesPanel onSelect=\{setSelectedMedia\}/);
+  assert.match(instagramScreen, /<InstagramMediaDialog id=\{selectedMedia\}/);
+  assert.doesNotMatch(instagramScreen, /href=\{post\.permalink\}/);
+  assert.match(instagramScreen, /저장 데이터/);
   assert.doesNotMatch(adminApp, /function AnalyticsScreen/);
   assert.match(analyticsScreen, /const \[paginationEnabled, setPaginationEnabled\] = useState\(false\)/);
   assert.match(analyticsScreen, /aria-label="페이지네이션"/);
@@ -156,8 +188,8 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(analyticsModel, /월별/);
   assert.match(adapterEntry, /apiAdminAdapter/);
   assert.match(apiAdapter, /new URLSearchParams\(\{[\s\S]*granularity: query\.granularity,[\s\S]*startDate: query\.startDate,[\s\S]*endDate: query\.endDate/);
-  assert.match(apiAdapter, /fetch\(`\/api\/amplitude\/metrics\?\$\{params\.toString\(\)\}`/);
-  assert.match(apiAdapter, /fetch\(`\/api\/amplitude\/dashboard\?/);
+  assert.match(apiAdapter, /authenticatedFetch\(`\/api\/amplitude\/metrics\?\$\{params\.toString\(\)\}`/);
+  assert.match(apiAdapter, /authenticatedFetch\(`\/api\/amplitude\/dashboard\?/);
   assert.doesNotMatch(apiAdapter, /group-account|GroupAccount/);
   assert.match(dashboardRoute, /getAmplitudeDashboard/);
   assert.match(dashboardRoute, /rangeStartDate/);
@@ -325,6 +357,9 @@ test("keeps the Neki design foundation and API adapter boundary explicit", async
   assert.match(css, /\.pose-filter-segmented \{[^}]*min-width: 540px/);
   assert.match(css, /\.analytics-intro-card/);
   assert.match(css, /\.analytics-summary-grid/);
+  assert.match(css, /\.instagram-summary-grid \{[^}]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
+  assert.match(css, /\.instagram-chart-column:focus-visible/);
+  assert.match(css, /\.instagram-content-cell/);
   assert.match(css, /\.qr-parsing-card/);
   assert.doesNotMatch(css, /\.brand-filter-segmented\b|\.brand-filter-segment-item\b|\.brand-filter-options\b|\.brand-filter-option\b|\.pose-filter-button\b/);
   assert.doesNotMatch(css, /\.command-(?:trigger|modal|list)\b|\.shortcut\b/);

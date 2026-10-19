@@ -1,16 +1,17 @@
 # Neki Admin
 
-네키 서비스 운영자를 위한 관리자 페이지입니다. 기존 Figma 기반 토큰과 Ant Design 구성 위에 사용자 지표, 수동 알림, 부스 관리, 브랜드 관리, 포즈 관리, Amplitude 지표 조회 업무 흐름을 구현했습니다.
+네키 서비스 운영자를 위한 관리자 페이지입니다. 기존 Figma 기반 토큰과 Ant Design 구성 위에 사용자 지표, 수동 알림, 부스 관리, 브랜드 관리, 포즈 관리, Amplitude·Instagram 지표 조회 업무 흐름을 구현했습니다.
 
 ## 현재 범위
 
-- 고정 사이드바와 프로필 영역
+- 고정 사이드바와 관리자 탐색. 프로필은 로그인 활성 시 표시
 - DAU·WAU·MAU 실제 Amplitude 집계, 일·주·월 기준 기간 선택, 플랫폼별 활성 사용자 추이
 - 수동 알림 즉시·예약 발송, 예상 인원 확인, 발송 이력·상세·예약 취소
 - 부스 검색·필터, 등록·상세·수정, 선택 모드 기반 일괄 폐점 처리
 - 전체 브랜드의 Android QR·iOS QR·지도 표시 상태, 3행 체크박스 조합 필터, 브랜드 추가·수정
 - 포즈 이미지 다중 업로드·미리보기, 이미지 목록과 1~4인 필터
 - 지표 탭에서 Amplitude 이벤트 31개를 기능 영역·페이지·파라미터별 조회
+- Instagram API 기반 현재 팔로워·기간별 도달/좋아요/조회수·일별 도달·전체 게시물 누적 성과 조회. 공유 JSON 저장, 신규 게시물 새로고침, 피드 상세·캐러셀·현재 스토리를 지원합니다. [연동·저장·운영 설정](docs/operations/instagram-metrics.md)
 - 브랜드 관리에서 Android·iOS QR 파싱 로직과 이미지 획득 규칙 조회
 - 브랜드 소식 목록·브랜드/검색 필터·수집 상태 조회. 수집은 GitHub Actions, 공유 데이터는 `data/brand-news` 브랜치에서 관리하며 [운영 절차](docs/operations/brand-news-collection.md)를 따릅니다.
 - 조회 로딩·빈 화면·오류·재시도와 작업 성공·실패 상태
@@ -71,7 +72,10 @@ npm run lint
 ## 주요 파일
 
 - `app/page.tsx`: 어드민 애플리케이션 진입점
-- `app/admin/AdminApp.tsx`: 공통 셸과 사용자 지표·수동 알림·부스·브랜드·포즈·지표·QR 파싱 화면
+- `app/admin/AdminApp.tsx`: 공통 셸과 기능 화면 조합
+- `app/admin/features/instagram/`: Instagram 지표 조회 화면·기간/요청 상태·서버 API adapter
+- `app/api/instagram/`: Meta API 서버 client·캐시/쿨다운·지표 정규화와 관리자 조회 Route
+- `app/api/instagram/instagram-file-cache.ts`: Instagram 조회 스냅샷의 공유 JSON 저장·검증·만료 처리
 - `app/admin/admin-adapter.ts`: mock/API 구현체를 선택하는 단일 조립 지점
 - `app/admin/api-admin-adapter.ts`: Amplitude 지표 API와 기존 목 adapter를 조합하는 구현체
 - `app/api/admin-api/admin-api-proxy.ts`: 추후 운영 CRUD 백엔드 연결에 사용할 서버 전용 경계
@@ -86,5 +90,7 @@ npm run lint
 - `app/globals.css`: Figma 기반 디자인 토큰과 화면 스타일
 - `app/layout.tsx`: 문서 메타데이터와 공유 미리보기 설정
 - `design-qa.md`: 원본과 구현 렌더를 함께 비교한 시각 QA 결과
+- `DESIGN.md`: 관리자 화면의 디자인 기준과 토큰 소유권
+- `UX-CONTRACT.md`: 공통 상호작용과 반응형 동작 규칙
 - `docs/superpowers/specs/2026-08-01-admin-frontend-foundation-design.md`: 프론트엔드 기반 설계
 - `Dockerfile`: Next.js standalone 서버 이미지
